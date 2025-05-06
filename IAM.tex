@@ -6,7 +6,7 @@
 
 % see ivoatexDoc for what group names to use here; use \ivoagroup[IG] for
 % interest groups.
-\ivoagroup{Distributed Services \& Protocols}
+\ivoagroup{Distributed Services and Protocols}
 
 \author{Patrick Dowler}
 \author{Mark Taylor}
@@ -64,7 +64,60 @@ infrastructure that enable VO applications.
 
 \section{Introduction}
 
-???? Write something ????
+Historically many services in the VO have operated primarily or
+entirely in anonymous mode.
+However authentication and in some cases authorization
+are becoming increasingly required,
+for instance to manage data rights and as an operational necessity for
+auditing service usage in the era of science platforms.
+% Some way to manage authentication for VO services is therefore necessary
+% but not covered in all contexts by existing industry-standard machinery.
+
+Where the client is browser-based
+it is often possible to integrate information about the authentication
+methods required with the web page or web application through which
+it is accessed.
+[is this true?  I don't understand browser-based authentication
+or what makes it work all that well]
+
+But a classic desktop VO client such as Aladin, TOPCAT or Python
+typically interacts with VO services differently, in one of two
+ways:
+\begin{enumerate}
+\item Search the registry for a service, then make VO-compliant
+      requests to that service (e.g.\ TAP)
+\item Be presented with a URL, then retrieve the data from that URL
+      (e.g.\ DataLink)
+\end{enumerate}
+In the first, TAP-like, case additional information is available to the
+client in the form of the Registry record for the service in question.
+This could in principle contain metadata describing the authentication
+method along with any required ancillary information such as
+login endpoints.
+Even in the TAP-like case in which only the TAP service URL is available
+(for instance because the user has typed it in rather than acquired it
+from a Registry search) the VOSI Capabilities endpoint can be reliably
+located ({\tt /capabilities} is a sibling of {\tt sync} in TAP),
+and relevant VOResource information could be retrived from the VOSI
+Capabilities document.
+
+However in the second, DataLink-like, case
+there is no information about where to find a corresponding
+registry record or VOSI document,
+or even a guarantee or likelihood that such a record exists.
+The URL in question may not even have come from a DataLink query,
+it could simply be a pointer to a protected resource like a
+FITS file or VOTable on a secured archive.
+Such URLs may have been acquired from a VO query in the application
+wishing to dereference them,
+but they may equally be in a column of a VOTable transmitted by SAMP
+or saved in an earlier session or from an unrelated application.
+Then the only opportunity to acquire information about how to authenticate
+is by examining the URL itself, or by communicating with the
+service providing it.
+
+HTTP Basic serves this need, but more modern/secure/flexible authentication
+methods such as OAuth (surprisingly?) 
 
 \subsection{Role within the VO Architecture}
 
