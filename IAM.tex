@@ -2,16 +2,17 @@
 \input tthdefs
 \input gitmeta
 
-\title{???? Full title ????}
+\title{Authentication for Non-Browser Clients in the VO}
 
 % see ivoatexDoc for what group names to use here; use \ivoagroup[IG] for
 % interest groups.
-\ivoagroup{???? group ????}
+\ivoagroup{Distributed Services \& Protocols}
 
-\author[????URL????]{????Alfred Usher Thor????}
-\author{????Fred Offline????}
+\author{Patrick Dowler}
+\author{Mark Taylor}
+\author{Sara Bertocco}
 
-\editor{????Alfred Usher Thor????}
+\editor{Sara Bertocco}
 
 % \previousversion[????URL????]{????Concise Document Label????}
 \previousversion{This is the first public release}
@@ -19,13 +20,32 @@
 
 \begin{document}
 \begin{abstract}
-???? Abstract ????
+Some, though not all, services in the Virtual Observatory are
+restricted to users who have been authenticated and are authorized to use them.
+This situation is far from unique to the VO,
+and there is much industry-standard technology to manage authentication.
+However, it largely assumes that authenticating clients,
+often browser-based, understand how authentication is to be done
+for a particular service.
+This document addresses a problem apparently not covered
+by existing standards, namely how a VO client can discover
+authentication requirements and use the corresponding mechanisms
+to supply user credentials
+when pointed at a compliant VO service, without requiring out-of-band
+information.
 \end{abstract}
 
 
 \section*{Acknowledgments}
 
-???? Or remove the section header ????
+\textcolor{red}{Editor's note: this section has to be
+updated/rewritten. Authors who have someone to thank should
+add here acknowledgments}
+This document derives from discussions among the Grid and Web Services
+working-group of IVOA. It is particularly informed by prototypes built
+by Mark Taylor (University of Bristol) and Patrick Dowler
+(Canadian Astronomy Data Centre).
+
 
 \section*{Conformance-related definitions}
 
