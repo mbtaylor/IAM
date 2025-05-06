@@ -19,11 +19,11 @@ AUTHOR_EMAIL=???
 
 # Source files for the TeX document (but the main file must always
 # be called $(DOCNAME).tex)
-SOURCES = $(DOCNAME).tex gitmeta.tex
+SOURCES = $(DOCNAME).tex gitmeta.tex role_diagram.pdf
 
 # List of image files to be included in submitted package (anything that
 # can be rendered directly by common web browsers)
-FIGURES =
+FIGURES = role_diagram.pdf
 
 # List of PDF figures (figures that must be converted to pixel images to
 # work in web browsers).
