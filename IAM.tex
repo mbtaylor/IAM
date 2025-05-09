@@ -19,20 +19,22 @@
 
 
 \begin{document}
+
 \begin{abstract}
 Some, though not all, services in the Virtual Observatory are
 restricted to users who have been authenticated and are authorized to use them.
 This situation is far from unique to the VO,
 and there is much industry-standard technology to manage authentication.
 However, it largely assumes that authenticating clients,
-often browser-based, understand how authentication is to be done
-for a particular service.
+often browser-based, have prior knowledge about
+how authentication is to be done
+for the particular service being accessed.
 This document addresses a problem apparently not covered
-by existing standards, namely how a VO client can discover
-authentication requirements and use the corresponding mechanisms
-to supply user credentials
-when pointed at a compliant VO service, without requiring out-of-band
-information.
+by existing internet standards, namely how a VO client,
+when pointed at a compliant VO service,
+can discover authentication requirements specific to that service
+and use the corresponding mechanisms to supply user credentials,
+without requiring out-of-band information.
 \end{abstract}
 
 
@@ -62,14 +64,14 @@ collaboration of separately funded projects to develop standards and
 infrastructure that enable VO applications.
 
 
-\section{Introduction}
+\section{Introduction}\label{sec:intro}
 
 Historically many services in the VO have operated primarily or
 entirely in anonymous mode.
-However authentication and in some cases authorization
-are becoming increasingly required,
+However authentication and associated authorization
+are becoming increasingly necessary in the VO,
 for instance to manage data rights and as an operational necessity for
-auditing service usage in the era of science platforms.
+auditing and limiting service usage in the era of science platforms.
 % Some way to manage authentication for VO services is therefore necessary
 % but not covered in all contexts by existing industry-standard machinery.
 
@@ -77,10 +79,10 @@ Where the client is browser-based
 it is often possible to integrate information about the authentication
 methods required with the web page or web application through which
 it is accessed.
-[is this true?  I don't understand browser-based authentication
-or what makes it work all that well]
+{\em [is this true?  I don't understand browser-based authentication
+or what makes it work all that well]}
 
-But a classic desktop VO client such as Aladin, TOPCAT or Python
+But a desktop VO client such as Aladin, TOPCAT or Python
 typically interacts with VO services differently, in one of two
 ways:
 \begin{enumerate}
@@ -94,12 +96,12 @@ client in the form of the Registry record for the service in question.
 This could in principle contain metadata describing the authentication
 method along with any required ancillary information such as
 login endpoints.
-Even in the TAP-like case in which only the TAP service URL is available
+Even if only the TAP service URL is available
 (for instance because the user has typed it in rather than acquired it
 from a Registry search) the VOSI Capabilities endpoint can be reliably
-located ({\tt /capabilities} is a sibling of {\tt sync} in TAP),
-and relevant VOResource information could be retrived from the VOSI
-Capabilities document.
+located ({\tt /capabilities} is a sibling of {\tt /sync} in TAP),
+so that relevant VOResource information could be retrived from the VOSI
+Capabilities document supplied by the service.
 
 However in the second, DataLink-like, case
 there is no information about where to find a corresponding
@@ -107,17 +109,63 @@ registry record or VOSI document,
 or even a guarantee or likelihood that such a record exists.
 The URL in question may not even have come from a DataLink query,
 it could simply be a pointer to a protected resource like a
-FITS file or VOTable on a secured archive.
-Such URLs may have been acquired from a VO query in the application
-wishing to dereference them,
-but they may equally be in a column of a VOTable transmitted by SAMP
-or saved in an earlier session or from an unrelated application.
+FITS file or VOTable in a secured filestore.
+Such a URL may have been acquired from a VO query in the application
+wishing to dereference it, in which case some authentication context
+may be available,
+but it may equally be read from a VOTable transmitted by SAMP
+or saved in an earlier session, or obtained from an unrelated application;
+in other words the application requiring the resource at a URL may
+have no information about the VO service which produced that URL.
 Then the only opportunity to acquire information about how to authenticate
 is by examining the URL itself, or by communicating with the
-service providing it.
+(not necessarily VOSI-compliant) service providing it.
 
-HTTP Basic serves this need, but more modern/secure/flexible authentication
-methods such as OAuth (surprisingly?) 
+The HTTP Basic Authentication method (RFC7617) can be used in this scenario,
+since all negotiation involving user credentials ---
+request and supply of username and password ---
+is done directly
+over the HTTP connection from which the resource is requested.
+More modern/secure/flexible authentication methods however tend to
+rely on additional interaction with other, unspecified, endpoints
+prior to the request itself.  For instance OAuth requires presentation
+of a bearer token to retrieve protected resources from a given URL,
+but there is no way given only that URL to determine where to find
+such endpoints or the details of how to acquire a token from them;
+in a typical OAuth usage scenario such information is known up front
+by the components making the request.
+
+No industry standard mechanism appears to exist to solve this problem.
+This document therefore proposes some VO-standard mechanisms for
+acquiring all the information a desktop application requires
+to manage exchange of user credentials for authenticated access,
+given only the URL for a suitably compliant protected resource.
+
+The intent of this proposal is not to define new authentication
+mechanisms parallel to pre-existing standards, but to provide
+missing components that facilitate use from typical VO contexts
+of such existing standards.
+
+Its approach is to define some VO-specific authentication schemes
+for use with the {\tt WWW-Authenticate} header defined by
+RFC 9110 Section 11 (which obsoletes the earlier RFC7235).
+The proposal is aligned as much as possible with standard web
+technology, requiring only some custom authentication schemes
+which can direct the client to use existing standard authentication
+mechanisms.
+
+Given that the registry record can only be discovered for some
+(TAP-like) and not other (DataLink-like) authentication scenarios,
+it is no longer recommended to base discovery of authentication methods
+on the {\tt securityMethod} element
+defined by VOResource, as described by SSO 2.0.
+Instead, the proposal here is recommended for both TAP-like and DataLink-like
+scenarios.
+
+Protected services in the VO are not required to use any of the  
+mechanisms proposed in this document; if they can establish the
+client interoperability they require using other mechanisms
+they are free to do so.
 
 \subsection{Role within the VO Architecture}
 
@@ -138,7 +186,281 @@ methods such as OAuth (surprisingly?)
 Fig.~\ref{fig:archdiag} shows the role this document plays within the
 IVOA architecture \citep{2021ivoa.spec.1101D}.
 
-???? and so on, LaTeX as you know and love it. ????
+
+\section{Challenge and Response}
+
+The standard way to negotiate authentication over HTTP is using 
+authentication challenges supplied in HTTP responses.
+
+\subsection{Standard Usage}
+
+The basics of authentication over HTTP can be found in RFC7235,
+now obsoleted by section 11 of RFC 9110.
+More detail can be found in those documents, but for convenience
+the basics are outlined here:
+% 401, 403, www-authenticate, maybe authorization.
+\begin{itemize}
+  \item An HTTP response may include one or more 
+        {\tt WWW-Authenticate} headers
+        to indicate that authentication is possible.
+        The content of these headers is one or more {\em challenges},
+        each describing how the client can authenticate according
+        to a named {\em authentication scheme}.
+  \item A 401 (Unauthorized) response MUST include at least one such challenge
+  \item Other (e.g. 200, 403) responses MAY include such challenges
+  \item The client may use the challenge information to decide how
+        to authenticate itself to the server in subsequent requests.
+        This can be done by suppyling the {\tt Authorization} header
+        with scheme-specific content.
+  \item The form of a challenge is:
+        \verb|<auth-scheme> [<scheme-specific-parameters>]|
+  \item The form of the {\tt WWW-Authenticate header} is:
+        \verb|WWW-Authenticate: <challenge> [<challenge> ...]|
+\end{itemize}
+
+\begin{admonition}{Query}
+   Do we need to worry about 407 and proxy-authenticate?
+   I don't {\em think\/} so.
+\end{admonition}
+
+The details of a number of these authentication schemes
+(\verb|<auth-scheme>| tokens and their associated parameters and semantics)
+are defined in IETF documents, for instance
+``{\tt basic}'' (RFC7617),
+``{\tt digest}'' (RFC7616)
+and
+``{\tt bearer}'' (RFC6750).
+RFC9110 section 11.1 says
+``New and existing authentication schemes are
+  specified independently and ought to be registered''
+  (\href{https://www.iana.org/assignments/http-authschemes}{with IANA}),
+but it does not say that they MUST be so registered.
+
+
+
+\subsection{Use within the VO}
+
+Where one of the standard registered authentication schemes is
+suitable for use by a particular VO service and its clients,
+it should be used.
+For instance Basic or Digest authentication provide all required
+information about the authentication procedure within the headers,
+since the client simply supplies credentials directly to the target
+service in subsequent requests.  In these cases it is highly recommended
+to require a TLS connection (HTTPS not HTTP) to avoid interception of
+the credentials.
+
+Services using OAuth2 generally make use of the Bearer scheme.
+In this case the challenged client supplies a {\em bearer token}
+in subsequent requests,
+but the challenge provides no information about how to acquire
+such a token which means it is not suitable for clients lacking
+prior knowledge about the target service, as described in
+Section~\ref{sec:intro}.
+
+Other methods of authentication over HTTP also exist
+and are used by VO services,
+for instance use of cookies and of X.509 certificates.
+In standard usage these do not use WWW-Authenticate challenges,
+and again prior knowledge about the service
+(how to acquire a suitable cookie or certificate)
+is required by the client to use them.
+
+This document defines in \ref{sec:voschemes}
+some VO-specific authentication schemes
+that solve these problems by supplying the missing information to
+clients in scheme-specific challenge parameters.
+
+\section{Authentication Schemes}\label{sec:authschemes}
+
+The authentication schemes defined in this section
+generally define:
+\begin{enumerate}
+  \item How clients are to present authentication data in future requests
+        to a service --- this is defined by the identity of the scheme
+  \item How they are to acquire such authentication data ---
+        this is communicated by the scheme-specific parameters
+\end{enumerate}
+Acquiring authentication data (such as a cookie, certificate or token)
+typically requires supplying credentials known to the user 
+(such as a username and password) in a particular way to a particular
+endpoint.
+Common parameters describing this activity are given in
+Section~\ref{sec:common-params}:
+\verb|access_url| for the credential submission endpoint and
+\verb|standard_id| for the credential submission method.
+
+\begin{admonition}{Query}
+  Terminology: is ``authentication data'' and ``credentials'' OK?
+  Is there better language for designating these things?
+\end{admonition}
+
+
+\subsection{Scope}\label{sec:scope}
+
+A major consideration for these schemes is authentication scope,
+that is a rule about which target URLs the authentication data
+should be submitted to.
+In the first place this authentication data,
+acquired in exchange for user credentials,
+is confidential information and so must not be leaked to services
+that are not trusted by its source
+(in general, to endpoints for which this authentication data is
+not intended).
+But in the second place, users may want to access multiple resources
+having the same authentication arrangements
+(e.g.\ download multiple files from the same host or from
+other hosts in the same domain using the same authentication)
+and should not be made to present their credentials
+multiple times where not necessary.
+The client may also be managing multiple sets of authentication data
+for multiple different authentication domains at once.
+So the authentication data must be delivered with sufficient scoping
+information for the client to tell for each subsequent request
+whether that authentication data should be presented.
+The nature and form of this scoping information is scheme-specific.
+
+
+\subsection{VO-Specific Scheme Definitions}\label{sec:voschemes}
+
+% mboxes required to stop TtL barfing on underscores
+\subsubsection{\mbox{\tt ivoa\_cookie}}\label{sec:ivoa-cookie}
+
+The \verb|ivoa_cookie| authentication scheme indicates that the service
+will accept cookies for authentication.
+Cookies are text strings received in the {\tt Set-Cookie}
+response header of some HTTP exchange,
+and presented via the {\tt Cookie} request header of subsequent
+interactions with the same service.
+This procedure is defined in RFC6265.
+A parallel mechanism using the {\tt Set-Cookie2} and {\tt Cookie2}
+headers was also defined by an earlier version of the cookie protocol
+defined in RFC2965, but this is now deprecated and rarely used.
+
+Where cookies are used for authentication, the user is generally required
+to present credentials at some login page in order to receive the cookie.
+The \verb|ivoa_cookie| scheme uses the parameters 
+\verb|standard_id| to convey the method of presenting these credentials, and
+\verb|access_url| to convey the location at which they should be presented.
+
+Cookies come with an associated scope,
+delivered at cookie acquisition time within the {\tt Set-Cookie} header
+as defined by RFC6265.
+Compliant cookie-handling libraries should therefore be able to determine
+for which HTTP requests a given cookie should be presented.
+
+\begin{description}
+  \item[Scheme name:] \verb|ivoa_cookie|
+  \item[Parameters:] \mbox{}
+  \begin{itemize}
+    \item \verb|standard_id| (required) --- see Section~\ref{sec:standard-id}
+    \item \verb|access_url| (required) --- see Section~\ref{sec:access-url}
+  \end{itemize}
+\end{description}
+
+
+\subsubsection{\mbox{\tt ivoa\_x509}}\label{sec:ivoa-x509}
+
+\begin{admonition}{Warning}
+  I am pretty ignorant about X.509.
+  This section should be checked by
+  somebody who knows what they're talking about.
+\end{admonition}
+
+The \verb|ivoa_x509| authentication scheme indicates that the
+service will use X.509 client certificates for authentication.
+A client in posession of a client certificate can use it to
+sign TLS (HTTPS) connections, and the service can examine the signature
+to authenticate the identity of the client.
+
+For use with this scheme, the user is required to present credentials
+at some login page in order to receive a suitable client certificate
+and its private key.
+The \verb|ivoa_x509| scheme uses the parameters 
+\verb|standard_id| to convey the method of presenting these credentials, and
+\verb|access_url| to convey the location at which they should be presented.
+The response from this login page is an X.509 certificate {\em (chain?)\/}
+including its private key, in PEM format.
+Current implementations support only RSA encoding.
+The certificate response SHOULD have a Content-Type header value of
+{\tt application/x-pem-file} {\em (should it?)}.
+
+\begin{admonition}{Query}
+  Do I need to distinguish proxy from non-proxy certificates here?
+  I don't actually understand what proxy certificates are.
+\end{admonition}
+
+Since client certificates achieve authentication by signing requests
+using public key cryptography, they cannot be stolen by third parties,
+so there are no security issues associated with attempting to use them
+to access services outside of the intended authentication domain.
+However using them for inapplicable services is inefficient and clumsy
+so some scoping is desirable.
+The applicable scope of a certificate acquired using this scheme is
+considered to be the Origin of the URL from which
+the challenge was received.
+Origin is defined by RFC9110 and is a triple of URI scheme, hostname, and port.
+\begin{admonition}{Query}
+I've made up this tentative scoping rule for certificates
+without wider consultation.
+It's what the AUTH library currently does.
+Could use Protection Space instead of Origin, which just aggregates a
+Realm with the Origin.
+Realm is not currently one of the parameters of this scheme,
+but it could be added if anybody thought it was worth while.
+\end{admonition}
+
+\begin{description}
+  \item[Scheme name:] \verb|ivoa_x509|
+  \item[Parameters:] \mbox{}
+  \begin{itemize}
+    \item \verb|standard_id| (required) --- see Section~\ref{sec:standard-id}
+    \item \verb|access_url| (required) --- see Section~\ref{sec:access-url}
+  \end{itemize}
+\end{description}
+
+
+\subsection{Common Challenge Parameters for VO Schemes}
+\label{sec:common-params}
+
+\subsubsection{\mbox{\tt standard\_id}}
+\label{sec:standard-id}
+
+\subsubsection{\mbox{\tt access\_url}}
+\label{sec:access-url}
+
+\subsection{Bearer Tokens}
+
+Bearer Tokens form the authentication data for
+% it's called an "Authorization Framework" in the title of RFC6749 and 6750.
+the OAuth2 authorization framework,
+which is used by a number of VO data providers.
+A bearer token is simply an opaque string;
+in order to use one, the client simply presents the token
+following the keyword ``{\tt Bearer}''
+in an {\tt Authorization} HTTP request header,
+as described by RFC6750.
+
+Various methods of token acquisition are defined by OAuth2 and
+associated standards, but at time of writing it's not clear which if
+any of these are suitable for use by clients lacking prior knowledge
+of the services for which they are intended,
+and no standard scoping mechanisms seem to be defined.
+
+This document does not therefore recommend any standard way
+to use Bearer Tokens within the VO, but it is hoped that
+progress will be made on this in future.
+
+
+
+\section{Authentication Scenarios}
+
+\begin{itemize}
+  \item Reactive
+  \item Pre-emptive
+  \item Proactive
+\end{itemize}
+
 
 \appendix
 \section{Changes from Previous Versions}
