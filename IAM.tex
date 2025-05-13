@@ -19,6 +19,7 @@
 
 \newcommand{\rfc}[1]{RFC\,#1}
 \newcommand{\header}[1]{{\tt #1}}
+\newcommand{\todonote}[1]{{\color{gray}\em [#1]}}
 
 \begin{document}
 
@@ -81,8 +82,8 @@ Where the client is browser-based
 it is often possible to integrate information about the authentication
 methods required with the web page or web application through which
 it is accessed.
-{\em [is this true?  I don't understand browser-based authentication
-or what makes it work all that well]}
+\todonote{is this true?  I don't understand browser-based authentication
+          or what makes it work all that well}
 
 But a desktop VO client such as Aladin, TOPCAT or Python
 typically interacts with VO services differently, in one of two
@@ -94,7 +95,8 @@ ways:
       (e.g.\ DataLink)
 \end{enumerate}
 In the first, TAP-like, case additional information is available to the
-client in the form of the Registry record for the service in question.
+client in the form of the Registry record for the service in question,
+as defined by VOResource and its service-specific extensions.
 This could in principle contain metadata describing the authentication
 method along with any required ancillary information such as
 login endpoints.
@@ -120,8 +122,7 @@ or saved in an earlier session, or obtained from an unrelated application;
 in other words the application requiring the resource at a URL may
 have no information about the VO service which produced that URL.
 Then the only opportunity to acquire information about how to authenticate
-is by examining the URL itself, or by communicating with the
-(not necessarily VOSI-compliant) service providing it.
+is by examining the URL itself, or by HTTP communications with that URL.
 
 The HTTP Basic Authentication method (\rfc{7617}) can be used in this scenario,
 since all negotiation involving user credentials ---
@@ -362,7 +363,7 @@ The \verb|ivoa_cookie| scheme uses the parameters
 Cookies come with an associated scope,
 delivered at cookie acquisition time within the {\tt Set-Cookie} header
 as defined by \rfc{6265}.
-Compliant cookie-handling libraries should therefore be able to determine
+Compliant cookie-handling libraries are therefore able to determine
 for which HTTP requests a given cookie should be presented.
 
 \begin{description}
@@ -395,11 +396,11 @@ and its private key.
 The \verb|ivoa_x509| scheme uses the parameters 
 \verb|standard_id| to convey the method of presenting these credentials, and
 \verb|access_url| to convey the location at which they should be presented.
-The response from this login page is an X.509 certificate {\em (chain?)\/}
+The response from this login page is an X.509 certificate \todonote{chain?}
 including its private key, in PEM format.
 Current implementations support only RSA encoding.
 The certificate response SHOULD have a Content-Type header value of
-{\tt application/x-pem-file} {\em (should it?)}.
+{\tt application/x-pem-file} \todonote{should it?}.
 
 \begin{admonition}{Query}
   Do I need to distinguish proxy from non-proxy certificates here?
@@ -455,7 +456,7 @@ tell the client exactly how this exchange is to be done.
 This parameter reports where to log in:
 the value is the endpoint at which
 exchange of user credentials for authentication data
-must be done.
+takes place.
 
 \subsubsection{\mbox{\tt standard\_id}}
 \label{sec:standard-id}
@@ -492,8 +493,8 @@ Currently defined values are:
 \subsection{Bearer Tokens}
 
 Bearer Tokens form the authentication data for
-% it's called an "Authorization Framework"
-in the title of \rfc{6749} and \rfc{6750}.
+% It's called an "Authorization Framework"
+% in the title of \rfc{6749} and \rfc{6750}.
 the OAuth2 authorization framework,
 which is used by a number of VO data providers.
 A bearer token is simply an opaque string;
@@ -508,13 +509,16 @@ any of these are suitable for use by clients lacking prior knowledge
 of the services for which they are intended,
 and no standard scoping mechanisms seem to be defined.
 
-This document does not therefore recommend any standard way
+This document does not therefore currently recommend any standard way
 to use Bearer Tokens within the VO, but it is hoped that
 progress will be made on this in future.
 
 
 
 \section{Challenge/Response Use in the VO}
+
+\subsection{Authentication Modalities}
+\label{sec:modalities}
 
 VO services can act in three different ways with respect to authentication:
 \begin{description}
@@ -539,7 +543,7 @@ the response should return a 401 response with an associated
 \header{WWW-Authenticate} challenge
 (or possibly a 403, optionally with a challenge).
 
-To cover the case of optional authentication,
+To cover all three cases of optional authentication,
 VOSI-compliant services should implement the following behaviour
 for both GET and HEAD requests to their VOSI-capabilities endpoint:
 \begin{itemize}
@@ -550,46 +554,59 @@ for both GET and HEAD requests to their VOSI-capabilities endpoint:
   \item Optional authentication:
         return 200 with one or more \header{WWW-Authenticate} challenges
 \end{itemize}
-VO clients can then probe the capabilities endpoint to find out
-whether an authentication attempt should be required or offered
-to the user prior to making queries on the service.
+VO clients can then probe the capabilities endpoint using an HTTP HEAD
+or GET request to find out whether an authentication attempt should be
+required or offered to the user prior to making queries on the service.
 
-% \begin{description}
-% \item[Reactive]
-%       In the most simple case, an unauthenticated client requiring a
-%       resource simply requests it anonymously.  If the response contains
-%       the resource, typically with an HTTP 200 Success (perhaps via some
-%       3xx redirects), no authentication is attempted.
-%       However, if the response is a 401 or 403 accompanied by a supported
-%       challenge, the client examines the challenge and negotiates
-%       authentication as described above.
-%       On successful authentication, the authentication data is used to
-%       retrieve the resource, and is also cached for future use.
-%       In case of a 401 or 403 without any challenges the client supports,
-%       retrieval of the resource fails.
-% \item[Proactive]
-%       Once a client has authenticated to a domain,
-%       it should accompany any subsequent request to a resource
-%       in the same domain
-%       with the authentication data that it has cached from that domain.
-%       In this way, the user is not required to perform the same
-%       authentication on multiple occasions.
-% \item[Preemptive]
-%       The Reactive mode described above will not seek authentication
-%       as long as a request successfully returns a resource.
-%       However, in some cases a service may make successful responses
-%       to both authenticated and unauthenticated requests,
-%       but with different responses in the two cases.
-%       This may be the case for instance for a TAP service
-%       that holds some public and some private tables.
-%       In this situation a client may want to detect
-%       (for instance to indicate to the user)
-%       that authentication, while not mandatory, is possible,
-%       to enable access to protected data.
-%       Such a situation should be detected at an early stage of
-%       interaction with the service rather than, for instance,
-%       revealed only with the result of a potentially expensive query.
-%\end{description}
+\subsection{Client Behaviour}
+
+Given the rules in Section~\ref{sec:modalities},
+client requests to potentially authenticated URLs should
+fall into one of the following categories:
+\begin{description}
+\item[Anonymous]
+      A client with no capability to authenticate operates in Anonymous mode.
+      Any attempt to retrieve protected resources will fail.
+\item[Reactive]
+      An unauthenticated client requiring a
+      resource simply requests it anonymously.
+      If the request is successful
+      (typically an HTTP 200 Success response, perhaps via some 3xx redirects),
+      no authentication is attempted.
+      However, if the response is a 401 or 403 accompanied by
+      one or more supported challenges,
+      the client chooses a challenge it is prepared to use,
+      and negotiates challenge-specific authentication as described above.
+      On successful authentication, the authentication data is used to
+      retrieve the resource, and is also cached for future use.
+      In case of a 401 or 403 without any challenges supported by the client,
+      or if authentication fails, retrieval of the resource fails.
+\item[Proactive]
+      Once a client has authenticated to a domain,
+      it should accompany any subsequent request to a resource
+      in the same domain
+      with the authentication data that it has cached from that domain.
+      In this way, the user is not required to perform the same
+      authentication on multiple occasions.
+\item[Preemptive]
+      When talking to a VOSI-compliant service that may provide
+      optional authentication,
+      the client should first probe the VOSI-Capabilities endpoint
+      using a HEAD or GET request.
+      In case of a 401 or 403 response
+      it should require the user to authenticate
+      using one of the presented challenges,
+      cache the authentication data, and make subsequent requests
+      to that service in Proactive mode;
+      if that authentication fails then the service cannot be used.
+      In case of a 200 response it should check the response for challenges;
+      if a supported challenge is present it should give the user the
+      option to authenticate, and if successful make subsequent requests
+      in Proactive mode.
+      If no challenges are present (no authentication)
+      or optional authentication fails,
+      it should make subsequent requests in Anonymous or Reactive mode.
+\end{description}
 
 
 
