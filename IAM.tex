@@ -17,6 +17,8 @@
 % \previousversion[????URL????]{????Concise Document Label????}
 \previousversion{This is the first public release}
 
+\newcommand{\rfc}[1]{RFC\,#1}
+\newcommand{\header}[1]{{\tt #1}}
 
 \begin{document}
 
@@ -121,7 +123,7 @@ Then the only opportunity to acquire information about how to authenticate
 is by examining the URL itself, or by communicating with the
 (not necessarily VOSI-compliant) service providing it.
 
-The HTTP Basic Authentication method (RFC7617) can be used in this scenario,
+The HTTP Basic Authentication method (\rfc{7617}) can be used in this scenario,
 since all negotiation involving user credentials ---
 request and supply of username and password ---
 is done directly
@@ -147,8 +149,8 @@ missing components that facilitate use from typical VO contexts
 of such existing standards.
 
 Its approach is to define some VO-specific authentication schemes
-for use with the {\tt WWW-Authenticate} header defined by
-RFC 9110 Section 11 (which obsoletes the earlier RFC7235).
+for use with the \header{WWW-Authenticate} header defined by
+\rfc{9110} Section 11 (which obsoletes the earlier \rfc{7235}).
 The proposal is aligned as much as possible with standard web
 technology, requiring only some custom authentication schemes
 which can direct the client to use existing standard authentication
@@ -162,7 +164,7 @@ defined by VOResource, as described by SSO 2.0.
 Instead, the proposal here is recommended for both TAP-like and DataLink-like
 scenarios.
 
-Protected services in the VO are not required to use any of the  
+Authenticated services in the VO are not required to use any of the  
 mechanisms proposed in this document; if they can establish the
 client interoperability they require using other mechanisms
 they are free to do so.
@@ -186,22 +188,28 @@ they are free to do so.
 Fig.~\ref{fig:archdiag} shows the role this document plays within the
 IVOA architecture \citep{2021ivoa.spec.1101D}.
 
+% Nomenclature?
+%  - domain
+%  - challenge
+%  - credentials
+%  - authentication data
+
 
 \section{Challenge and Response}
 
 The standard way to negotiate authentication over HTTP is using 
 authentication challenges supplied in HTTP responses.
 
-\subsection{Standard Usage}
+\subsection{Challenge/Response Framework}
 
-The basics of authentication over HTTP can be found in RFC7235,
-now obsoleted by section 11 of RFC 9110.
+The basics of authentication over HTTP can be found in \rfc{7235},
+now obsoleted by section 11 of \rfc{9110}.
 More detail can be found in those documents, but for convenience
 the basics are outlined here:
-% 401, 403, www-authenticate, maybe authorization.
+% 401, 403, WWW-Authenticate, maybe Authorization.
 \begin{itemize}
   \item An HTTP response may include one or more 
-        {\tt WWW-Authenticate} headers
+        \header{WWW-Authenticate} headers
         to indicate that authentication is possible.
         The content of these headers is one or more {\em challenges},
         each describing how the client can authenticate according
@@ -210,11 +218,11 @@ the basics are outlined here:
   \item Other (e.g. 200, 403) responses MAY include such challenges
   \item The client may use the challenge information to decide how
         to authenticate itself to the server in subsequent requests.
-        This can be done by suppyling the {\tt Authorization} header
+        This can be done by suppyling the \header{Authorization} header
         with scheme-specific content.
   \item The form of a challenge is:
         \verb|<auth-scheme> [<scheme-specific-parameters>]|
-  \item The form of the {\tt WWW-Authenticate header} is:
+  \item The form of the \header{WWW-Authenticate} header is:
         \verb|WWW-Authenticate: <challenge> [<challenge> ...]|
 \end{itemize}
 
@@ -226,11 +234,11 @@ the basics are outlined here:
 The details of a number of these authentication schemes
 (\verb|<auth-scheme>| tokens and their associated parameters and semantics)
 are defined in IETF documents, for instance
-``{\tt basic}'' (RFC7617),
-``{\tt digest}'' (RFC7616)
+``{\tt basic}'' (\rfc{7617}),
+``{\tt digest}'' (\rfc{7616})
 and
-``{\tt bearer}'' (RFC6750).
-RFC9110 section 11.1 says
+``{\tt bearer}'' (\rfc{6750}).
+\rfc{RFC9110} section 11.1 says
 ``New and existing authentication schemes are
   specified independently and ought to be registered''
   (\href{https://www.iana.org/assignments/http-authschemes}{with IANA}),
@@ -238,7 +246,7 @@ but it does not say that they MUST be so registered.
 
 
 
-\subsection{Use within the VO}
+\subsection{Authentication Schemes in the VO}
 
 Where one of the standard registered authentication schemes is
 suitable for use by a particular VO service and its clients,
@@ -261,7 +269,7 @@ Section~\ref{sec:intro}.
 Other methods of authentication over HTTP also exist
 and are used by VO services,
 for instance use of cookies and of X.509 certificates.
-In standard usage these do not use WWW-Authenticate challenges,
+In standard usage these do not use \header{WWW-Authenticate} challenges,
 and again prior knowledge about the service
 (how to acquire a suitable cookie or certificate)
 is required by the client to use them.
@@ -299,7 +307,7 @@ Section~\ref{sec:common-params}:
 \subsection{Scope}\label{sec:scope}
 
 A major consideration for these schemes is authentication scope,
-that is a rule about which target URLs the authentication data
+that is some rule about which target URLs the authentication data
 should be submitted to.
 In the first place this authentication data,
 acquired in exchange for user credentials,
@@ -320,6 +328,14 @@ information for the client to tell for each subsequent request
 whether that authentication data should be presented.
 The nature and form of this scoping information is scheme-specific.
 
+% False negatives (failure to identify a URL for which existing
+% authentication data could be used) are annoying since they lead
+% to repeated unnecessary authentication attempts.
+% False positives (incorrectly identifying a URL as a suitable
+% target for existing authentication data) can lead to leaking of
+% credentials and must be avoided.
+%%  - actually this isn't necessarily true, it's scheme-dependent
+
 
 \subsection{VO-Specific Scheme Definitions}\label{sec:voschemes}
 
@@ -332,10 +348,10 @@ Cookies are text strings received in the {\tt Set-Cookie}
 response header of some HTTP exchange,
 and presented via the {\tt Cookie} request header of subsequent
 interactions with the same service.
-This procedure is defined in RFC6265.
+This procedure is defined in \rfc{6265}.
 A parallel mechanism using the {\tt Set-Cookie2} and {\tt Cookie2}
 headers was also defined by an earlier version of the cookie protocol
-defined in RFC2965, but this is now deprecated and rarely used.
+defined in \rfc{2965}, but this is now deprecated and rarely used.
 
 Where cookies are used for authentication, the user is generally required
 to present credentials at some login page in order to receive the cookie.
@@ -345,7 +361,7 @@ The \verb|ivoa_cookie| scheme uses the parameters
 
 Cookies come with an associated scope,
 delivered at cookie acquisition time within the {\tt Set-Cookie} header
-as defined by RFC6265.
+as defined by \rfc{6265}.
 Compliant cookie-handling libraries should therefore be able to determine
 for which HTTP requests a given cookie should be presented.
 
@@ -399,7 +415,8 @@ so some scoping is desirable.
 The applicable scope of a certificate acquired using this scheme is
 considered to be the Origin of the URL from which
 the challenge was received.
-Origin is defined by RFC9110 and is a triple of URI scheme, hostname, and port.
+Origin is defined by \rfc{9110}
+and is a triple of URI scheme, hostname, and port.
 \begin{admonition}{Query}
 I've made up this tentative scoping rule for certificates
 without wider consultation.
@@ -423,23 +440,67 @@ but it could be added if anybody thought it was worth while.
 \subsection{Common Challenge Parameters for VO Schemes}
 \label{sec:common-params}
 
-\subsubsection{\mbox{\tt standard\_id}}
-\label{sec:standard-id}
+Some of the authentication schemes described in Section~\ref{sec:voschemes}
+rely on a stage where the user exchanges 
+% secret credentials, but so far always...
+a username and password
+for some authentication data that can be used in subsequent authenticated
+interactions.
+This section defines scheme parameters that
+tell the client exactly how this exchange is to be done.
 
 \subsubsection{\mbox{\tt access\_url}}
 \label{sec:access-url}
 
+This parameter reports where to log in:
+the value is the endpoint at which
+exchange of user credentials for authentication data
+must be done.
+
+\subsubsection{\mbox{\tt standard\_id}}
+\label{sec:standard-id}
+
+This parameter explains how to log in:
+it defines the protocol for exchanging user credentials
+for authentication data.
+Username and password are supplied in the HTTP request as described below,
+and the response returns scheme-specific credential data.
+Currently defined values are:
+
+\begin{description}
+  \item[{\tt ivo://ivoa.net/sso\#BasicAA}]
+        The Basic Authentication scheme defined by \rfc{7617} is used to
+        authenticate.
+        It is STRONGLY RECOMMENDED to use this over HTTPS not HTTP,
+        since the username and password are effectively passed in clear text.
+  \item[{\tt ivo://ivoa.net/sso\#tls-with-password}]
+        The username and password are presented using a POST request
+        over an HTTPS connection.
+        These items are passed as the values of parameters
+        ``{\tt username}'' and ``{\tt password}'' respectively,
+        transmitted in {\tt application/x-www-form-urlencoded} format.
+\end{description}
+
+\begin{admonition}{Note}
+  These values are defined by the (obsolete?) SSO 2.0 standard.
+  It would make more sense if they were owned by this standard,
+  but at time of writing these values are already in use in
+  deployed services, so it could be painful to change them.
+\end{admonition}
+
+
 \subsection{Bearer Tokens}
 
 Bearer Tokens form the authentication data for
-% it's called an "Authorization Framework" in the title of RFC6749 and 6750.
+% it's called an "Authorization Framework"
+in the title of \rfc{6749} and \rfc{6750}.
 the OAuth2 authorization framework,
 which is used by a number of VO data providers.
 A bearer token is simply an opaque string;
 in order to use one, the client simply presents the token
 following the keyword ``{\tt Bearer}''
-in an {\tt Authorization} HTTP request header,
-as described by RFC6750.
+in an \header{Authorization} HTTP request header,
+as described by \rfc{6750}.
 
 Various methods of token acquisition are defined by OAuth2 and
 associated standards, but at time of writing it's not clear which if
@@ -453,13 +514,83 @@ progress will be made on this in future.
 
 
 
-\section{Authentication Scenarios}
+\section{Challenge/Response Use in the VO}
 
+VO services can act in three different ways with respect to authentication:
+\begin{description}
+  \item[No authentication:]
+       all access is anonymous
+  \item[Mandatory authentication:]
+       anonymous access is always rejected, but once authenticated,
+       user requests may be successful (subject to authorization)
+  \item[Optional authentication:]
+       anonymous requests may succeed, but authentication is possible
+       and service behaviour may differ for anonymous and authenticated access;
+       for instance a TAP service may expose more tables or offer enhanced
+       usage limits to authenticated users
+\end{description}
+% The first two cases are fairly straightforward to deal with,
+% the last one is a bit more subtle.
+
+The standard HTTP rules for authentication cover the cases of
+no authentication or mandatory authentication:
+if a client requests a resource for which it is not authenticated,
+the response should return a 401 response with an associated
+\header{WWW-Authenticate} challenge
+(or possibly a 403, optionally with a challenge).
+
+To cover the case of optional authentication,
+VOSI-compliant services should implement the following behaviour
+for both GET and HEAD requests to their VOSI-capabilities endpoint:
 \begin{itemize}
-  \item Reactive
-  \item Pre-emptive
-  \item Proactive
+  \item No authentication:
+        return 200
+  \item Mandatory authentication:
+        return 401/403 with one or more \header{WWW-Authenticate} challenges
+  \item Optional authentication:
+        return 200 with one or more \header{WWW-Authenticate} challenges
 \end{itemize}
+VO clients can then probe the capabilities endpoint to find out
+whether an authentication attempt should be required or offered
+to the user prior to making queries on the service.
+
+% \begin{description}
+% \item[Reactive]
+%       In the most simple case, an unauthenticated client requiring a
+%       resource simply requests it anonymously.  If the response contains
+%       the resource, typically with an HTTP 200 Success (perhaps via some
+%       3xx redirects), no authentication is attempted.
+%       However, if the response is a 401 or 403 accompanied by a supported
+%       challenge, the client examines the challenge and negotiates
+%       authentication as described above.
+%       On successful authentication, the authentication data is used to
+%       retrieve the resource, and is also cached for future use.
+%       In case of a 401 or 403 without any challenges the client supports,
+%       retrieval of the resource fails.
+% \item[Proactive]
+%       Once a client has authenticated to a domain,
+%       it should accompany any subsequent request to a resource
+%       in the same domain
+%       with the authentication data that it has cached from that domain.
+%       In this way, the user is not required to perform the same
+%       authentication on multiple occasions.
+% \item[Preemptive]
+%       The Reactive mode described above will not seek authentication
+%       as long as a request successfully returns a resource.
+%       However, in some cases a service may make successful responses
+%       to both authenticated and unauthenticated requests,
+%       but with different responses in the two cases.
+%       This may be the case for instance for a TAP service
+%       that holds some public and some private tables.
+%       In this situation a client may want to detect
+%       (for instance to indicate to the user)
+%       that authentication, while not mandatory, is possible,
+%       to enable access to protected data.
+%       Such a situation should be detected at an early stage of
+%       interaction with the service rather than, for instance,
+%       revealed only with the result of a potentially expensive query.
+%\end{description}
+
 
 
 \appendix
