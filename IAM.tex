@@ -614,7 +614,10 @@ fall into one of the following categories:
 
 This section contains examples of communications between clients
 and authenticated services.
-Client behaviour is provided using {\tt curl(1)}.
+Client behaviour is represented using {\tt curl(1)};
+this means that the query headers are not shown in the examples,
+but they can be examined by repeating the curl invocations
+using the {\tt --verbose} flag.
 Some of the non-essential headers have been removed for the sake
 of brevity, and some line-breaks imposed for readability.
 
@@ -715,6 +718,70 @@ Content-Type: text/xml;charset=UTF-8
 <?xml version="1.0" encoding="UTF-8"?>
 <uws:jobs  xmlns:uws="http://www.ivoa.net/xml/UWS/v1.0">
   <uws:jobref id="1726835528535O" > ... </uws:jobref>
+  ...
+</uws:jobs>
+\end{verbatim}
+}
+
+\subsection{Optional authentication with certificates}
+
+% Note: at time of writing the exchange in this example doesn't quite
+% work in real life, since the standard_id and access_url parameters
+% are missing from the youcat ivoa_x509 challenge.
+% I've pretended here that they are in fact present.  The rest works.
+
+Probe the VOSI-capabilities endpoint of a TAP service to check
+for authentication modality:
+{\footnotesize
+\begin{verbatim}
+% curl -I https://ws-uv.canfar.net/youcat/capabilities
+HTTP/1.1 200
+www-authenticate: ivoa_x509 standard_id="ivo://ivoa.net/sso#BasicAA",
+                  access_url="https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred/generate"
+www-authenticate: Bearer
+\end{verbatim}
+}
+
+\noindent
+The 200 Success response with challenges means that optional authentication
+is available.
+The \verb|ivoa_x509| challenge is recognised with \verb|standard_id|
+of \verb|BasicAA|, so transmit user credentials using
+HTTP Basic Authentication to the \verb|access_url|:
+
+{\footnotesize
+\begin{verbatim}
+% curl -s -u mbt:xxxx
+       https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred/generate
+HTTP/1.1 200
+x-vo-authenticated: mbt
+content-disposition: inline; filename="cadcproxy.pem"
+content-type: application/x-pem-file
+strict-transport-security: max-age=63072000
+
+-----BEGIN CERTIFICATE-----
+MIIEYzCCAkugAwIBAgIHAJ7opoSjuDANBgkqhkiG9w0BAQsFADBWMQswCQYDVQQG
+EwJDQTEZMBcGA1UECAwQQnJpdGlzaCBDb2x1bWJpYTENMAsGA1UECgwEQ0FEQzEd
+...
+5/tPtFk=
+-----END CERTIFICATE-----
+\end{verbatim}
+}
+
+\noindent
+The response is a PEM-encoded client certificate, which we copy
+to a local file, \verb|mbtcert.pem|.
+This can then be used to sign subsequent requests to the same service:
+{\footnotesize
+\begin{verbatim}
+% curl --cert mbtcert.pem https://ws-uv.canfar.net/youcat/async -D -
+HTTP/1.1 200
+server: OpenCADC/cadc-rest
+x-vo-authenticated: mbt
+content-type: text/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<uws:jobs xmlns:uws="http://www.ivoa.net/xml/UWS/v1.0" ...>
   ...
 </uws:jobs>
 \end{verbatim}
