@@ -219,12 +219,12 @@ the basics are outlined here:
   \item Other (e.g. 200, 403) responses MAY include such challenges
   \item The client may use the challenge information to decide how
         to authenticate itself to the server in subsequent requests.
-        This can be done by suppyling the \header{Authorization} header
+        This can be done by supplying the \header{Authorization} header
         with scheme-specific content.
-  \item The form of a challenge is:
-        \verb|<auth-scheme> [<scheme-specific-parameters>]|
-  \item The form of the \header{WWW-Authenticate} header is:
-        \verb|WWW-Authenticate: <challenge> [<challenge> ...]|
+  \item The form of a challenge is:\\
+        \verb|   <auth-scheme> [<scheme-specific-parameters>]|
+  \item The form of the \header{WWW-Authenticate} header is:\\
+        \verb|   WWW-Authenticate: <challenge> [<challenge> ...]|
 \end{itemize}
 
 \begin{admonition}{Query}
@@ -465,7 +465,7 @@ This parameter explains how to log in:
 it defines the protocol for exchanging user credentials
 for authentication data.
 Username and password are supplied in the HTTP request as described below,
-and the response returns scheme-specific credential data.
+and the response returns scheme-specific authentication data.
 Currently defined values are:
 
 \begin{description}
@@ -600,13 +600,122 @@ fall into one of the following categories:
       to that service in Proactive mode;
       if that authentication fails then the service cannot be used.
       In case of a 200 response it should check the response for challenges;
-      if a supported challenge is present it should give the user the
+      if a supported challenge is present it may give the user the
       option to authenticate, and if successful make subsequent requests
       in Proactive mode.
       If no challenges are present (no authentication)
       or optional authentication fails,
       it should make subsequent requests in Anonymous or Reactive mode.
 \end{description}
+
+\section{Examples}
+
+This section contains examples of communications between clients
+and authenticated services.
+Client behaviour is provided using {\tt curl(1)}.
+Some of the non-essential headers have been removed for the sake
+of brevity, and some line-breaks imposed for readability.
+
+\subsection{Reactive authentication with Basic}
+
+Request a resource anonymously:
+{\footnotesize
+\begin{verbatim}
+% curl 'http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot' -IL
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Basic realm="Shangri-la"
+Content-Type: text/html;charset=utf-8
+\end{verbatim}
+}
+
+\noindent
+This gives a 401 Unauthorized response
+with a standard Basic challenge, which we can use:
+{\footnotesize
+\begin{verbatim}
+% curl -u topcat:topcat -L -D -
+       http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot
+HTTP/1.1 200 OK
+Content-Type: application/x-votable+xml
+
+<?xml version='1.0' encoding='utf-8'?>
+<VOTABLE version="1.5" ...
+         ...
+\end{verbatim}
+}
+
+\noindent
+We can then use the same authentication data (username and password)
+preemptively for other resources within the same scope
+(defined in this context by \rfc{7617} as locations in the same
+directory or its descendants)
+{\footnotesize
+\begin{verbatim}
+% curl -u topcat:topcat -L -D -
+       http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits
+HTTP/1.1 200 OK
+Content-Type: application/fits
+
+SIMPLE  =                    T / Standard FITS format ...
+\end{verbatim}
+}
+
+\noindent
+This example, working at the time of writing, uses a dummy service for 
+which the username and password are not sensitive.
+
+\subsection{Optional authentication with cookies}
+
+Probe the VOSI-capabilities endpoint of a TAP service to check
+for authentication modality:
+{\footnotesize
+\begin{verbatim}
+% curl --head https://gea.esac.esa.int/tap-server/tap/capabilities
+HTTP/1.1 200 200
+Content-Type: text/xml;charset=UTF-8
+WWW-Authenticate: ivoa_cookie standard_id="ivo://ivoa.net/sso#tls-with-password",
+                              access_url="https://gea.esac.esa.int/tap-server/login"
+\end{verbatim}
+}
+
+\noindent
+The 200 Success response with a challenge means that optional authentication
+is available.
+We choose to authenticate.
+The \verb|ivoa_cookie| challenge is recognised with \verb|standard_id|
+of \verb|tls-with-password|, so transmit user credentials
+by POSTing \verb|username| and \verb|password| parameters
+to the \verb|access_url|:
+{\footnotesize
+\begin{verbatim}
+% curl -D - -d username=mtaylo02 -d password=xxxx
+       https://gea.esac.esa.int/tap-server/login -s -o /dev/null
+HTTP/1.1 200 200
+Set-Cookie: JSESSIONID=474DEF8CBB046D47294; Path=/tap-server; Secure; HttpOnly
+Content-Type: text/plain; charset=UTF-8
+\end{verbatim}
+}
+
+\noindent
+The response comes back with a cookie in the header.
+We use this for subsequent requests to the same service
+(in general: for subsequent requests in the domain defined by the Path
+parameter and other relevant parameters in the returned Set-Cookie header
+in accordance with \rfc{6265}):
+{\footnotesize
+\begin{verbatim}
+% curl -D - --header  'Cookie: JSESSIONID=474DEF8CBB046D47294' https://gea.esac.esa.int/tap-server/tap/async -o /dev/null -s
+HTTP/1.1 200 200
+X-VO-Authenticated: mtaylo02
+Content-Type: text/xml;charset=UTF-8
+
+<?xml version="1.0" encoding="UTF-8"?>
+<uws:jobs  xmlns:uws="http://www.ivoa.net/xml/UWS/v1.0">
+  <uws:jobref id="1726835528535O" > ... </uws:jobref>
+  ...
+</uws:jobs>
+\end{verbatim}
+}
 
 
 
