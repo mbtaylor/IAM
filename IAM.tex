@@ -1,6 +1,7 @@
 \documentclass[11pt,a4paper]{ivoa}
 \input tthdefs
 \input gitmeta
+\usepackage[textsize=small,textwidth=3.8cm]{todonotes}
 
 \title{Authentication for Non-Browser Clients in the VO}
 
@@ -19,7 +20,6 @@
 
 \newcommand{\rfc}[1]{RFC\,#1}
 \newcommand{\header}[1]{{\tt #1}}
-\newcommand{\todonote}[1]{{\color{gray}\em [#1]}}
 
 \begin{document}
 
@@ -82,8 +82,8 @@ Where the client is browser-based
 it is often possible to integrate information about the authentication
 methods required with the web page or web application through which
 it is accessed.
-\todonote{is this true?  I don't understand browser-based authentication
-          or what makes it work all that well}
+\todo{is this true?  I don't understand browser-based authentication
+      or what makes it work all that well}
 
 But a desktop VO client such as Aladin, TOPCAT or Python
 typically interacts with VO services differently, in one of two
@@ -227,10 +227,10 @@ the basics are outlined here:
         \verb|   WWW-Authenticate: <challenge> [<challenge> ...]|
 \end{itemize}
 
-\begin{admonition}{Query}
+\todo{
    Do we need to worry about 407 and proxy-authenticate?
    I don't {\em think\/} so.
-\end{admonition}
+}
 
 The details of a number of these authentication schemes
 (\verb|<auth-scheme>| tokens and their associated parameters and semantics)
@@ -299,10 +299,10 @@ Section~\ref{sec:common-params}:
 \verb|access_url| for the credential submission endpoint and
 \verb|standard_id| for the credential submission method.
 
-\begin{admonition}{Query}
+\todo{
   Terminology: is ``authentication data'' and ``credentials'' OK?
   Is there better language for designating these things?
-\end{admonition}
+}
 
 
 \subsection{Scope}\label{sec:scope}
@@ -378,11 +378,11 @@ for which HTTP requests a given cookie should be presented.
 
 \subsubsection{\mbox{\tt ivoa\_x509}}\label{sec:ivoa-x509}
 
-\begin{admonition}{Warning}
+\todo{
   I am pretty ignorant about X.509.
   This section should be checked by
   somebody who knows what they're talking about.
-\end{admonition}
+}
 
 The \verb|ivoa_x509| authentication scheme indicates that the
 service will use X.509 client certificates for authentication.
@@ -390,22 +390,22 @@ A client in posession of a client certificate can use it to
 sign TLS (HTTPS) connections, and the service can examine the signature
 to authenticate the identity of the client.
 
+\todo{
+  Do we need to distinguish proxy from non-proxy certificates here?
+  I don't actually understand what proxy certificates are.
+}
+
 For use with this scheme, the user is required to present credentials
 at some login page in order to receive a suitable client certificate
 and its private key.
 The \verb|ivoa_x509| scheme uses the parameters 
 \verb|standard_id| to convey the method of presenting these credentials, and
 \verb|access_url| to convey the location at which they should be presented.
-The response from this login page is an X.509 certificate \todonote{chain?}
+The response from this login page is an X.509 certificate chain 
 including its private key, in PEM format.
 Current implementations support only RSA encoding.
 The certificate response SHOULD have a Content-Type header value of
-{\tt application/x-pem-file} \todonote{should it?}.
-
-\begin{admonition}{Query}
-  Do I need to distinguish proxy from non-proxy certificates here?
-  I don't actually understand what proxy certificates are.
-\end{admonition}
+{\tt application/x-pem-file} \todo{should it?}.
 
 Since client certificates achieve authentication by signing requests
 using public key cryptography, they cannot be stolen by third parties,
@@ -418,15 +418,16 @@ considered to be the Origin of the URL from which
 the challenge was received.
 Origin is defined by \rfc{9110}
 and is a triple of URI scheme, hostname, and port.
-\begin{admonition}{Query}
-I've made up this tentative scoping rule for certificates
-without wider consultation.
-It's what the AUTH library currently does.
-Could use Protection Space instead of Origin, which just aggregates a
-Realm with the Origin.
-Realm is not currently one of the parameters of this scheme,
-but it could be added if anybody thought it was worth while.
-\end{admonition}
+
+\todo{
+  I've made up this tentative scoping rule for certificates
+  without wider consultation.
+  It's what the AUTH library currently does.
+  Could use Protection Space instead of Origin, which just aggregates a
+  Realm with the Origin.
+  Realm is not currently one of the parameters of this scheme,
+  but it could be added if anybody thought it was worth while.
+}
 
 \begin{description}
   \item[Scheme name:] \verb|ivoa_x509|
@@ -482,12 +483,13 @@ Currently defined values are:
         transmitted in {\tt application/x-www-form-urlencoded} format.
 \end{description}
 
-\begin{admonition}{Note}
-  These values are defined by the (obsolete?) SSO 2.0 standard.
+\todo{
+  These {\tt standard\_id} values are defined by
+  the (obsolete?) SSO 2.0 standard.
   It would make more sense if they were owned by this standard,
   but at time of writing these values are already in use in
   deployed services, so it could be painful to change them.
-\end{admonition}
+}
 
 
 \subsection{Bearer Tokens}
@@ -704,7 +706,8 @@ parameter and other relevant parameters in the returned Set-Cookie header
 in accordance with \rfc{6265}):
 {\footnotesize
 \begin{verbatim}
-% curl -D - --header  'Cookie: JSESSIONID=474DEF8CBB046D47294' https://gea.esac.esa.int/tap-server/tap/async -o /dev/null -s
+% curl -D - -o /dev/null -s --header 'Cookie: JSESSIONID=474DEF8CBB046D47294'
+       https://gea.esac.esa.int/tap-server/tap/async
 HTTP/1.1 200 200
 X-VO-Authenticated: mtaylo02
 Content-Type: text/xml;charset=UTF-8
