@@ -3,7 +3,7 @@
 \input gitmeta
 \usepackage[textsize=small,textwidth=3.8cm,backgroundcolor=yellow]{todonotes}
 
-\title{Authentication for Non-Browser Clients in the VO}
+\title{IVOA Interoperable Authentication Management}
 
 % see ivoatexDoc for what group names to use here; use \ivoagroup[IG] for
 % interest groups.
@@ -24,32 +24,18 @@
 \begin{document}
 
 \begin{abstract}
-Some, though not all, services in the Virtual Observatory are
-restricted to users who have been authenticated and are authorized to use them.
-This situation is far from unique to the VO,
-and there is much industry-standard technology to manage authentication.
-However, it largely assumes that authenticating clients,
-often browser-based, have prior knowledge about
-how authentication is to be done
-for the particular service being accessed.
-This document addresses a problem apparently not covered
-by existing internet standards, namely how a VO client,
-when pointed at a compliant VO service,
-can discover authentication requirements specific to that service
-and use the corresponding mechanisms to supply user credentials,
-without requiring out-of-band information.
+IVOA's Interoperable Authentication Management explains how
+VO services can manage the authentication process for
+interoperability with clients, especially non-browser clients.
+Particularly, this document
+describes how services advertise their
+support of specific authentication schemes and how
+clients can discover and use this information to access protected
+resources.
 \end{abstract}
 
 
 \section*{Acknowledgments}
-
-\textcolor{red}{Editor's note: this section has to be
-updated/rewritten. Authors who have someone to thank should
-add here acknowledgments}
-This document derives from discussions among the Grid and Web Services
-working-group of IVOA. It is particularly informed by prototypes built
-by Mark Taylor (University of Bristol) and Patrick Dowler
-(Canadian Astronomy Data Centre).
 
 
 \section*{Conformance-related definitions}
