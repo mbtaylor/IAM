@@ -1,7 +1,7 @@
 \documentclass[11pt,a4paper]{ivoa}
 \input tthdefs
 \input gitmeta
-\usepackage[textsize=small,textwidth=3.8cm]{todonotes}
+\usepackage[textsize=small,textwidth=3.8cm,backgroundcolor=yellow]{todonotes}
 
 \title{Authentication for Non-Browser Clients in the VO}
 
@@ -104,7 +104,7 @@ Even if only the TAP service URL is available
 (for instance because the user has typed it in rather than acquired it
 from a Registry search) the VOSI Capabilities endpoint can be reliably
 located ({\tt /capabilities} is a sibling of {\tt /sync} in TAP),
-so that relevant VOResource information could be retrived from the VOSI
+so that relevant VOResource information could be retrieved from the VOSI
 Capabilities document supplied by the service.
 
 However in the second, DataLink-like, case
@@ -112,7 +112,7 @@ there is no information about where to find a corresponding
 registry record or VOSI document,
 or even a guarantee or likelihood that such a record exists.
 The URL in question may not even have come from a DataLink query,
-it could simply be a pointer to a protected resource like a
+it could simply be a pointer to a restricted resource like a
 FITS file or VOTable in a secured filestore.
 Such a URL may have been acquired from a VO query in the application
 wishing to dereference it, in which case some authentication context
@@ -132,7 +132,7 @@ over the HTTP connection from which the resource is requested.
 More modern/secure/flexible authentication methods however tend to
 rely on additional interaction with other, unspecified, endpoints
 prior to the request itself.  For instance OAuth requires presentation
-of a bearer token to retrieve protected resources from a given URL,
+of a bearer token to retrieve restricted resources from a given URL,
 but there is no way given only that URL to determine where or how
 to acquire this token;
 in a typical OAuth usage scenario such information is known up front
@@ -142,7 +142,7 @@ No industry standard mechanism appears to exist to solve this problem.
 This document therefore proposes some VO-standard mechanisms for
 acquiring all the information a desktop application requires
 to manage exchange of user credentials for authenticated access,
-given only the URL for a suitably compliant protected resource.
+given only the URL for a suitably compliant restricted resource.
 
 The intent of this document is not to define new authentication
 mechanisms parallel to pre-existing standards, but to provide
@@ -203,8 +203,8 @@ authentication challenges supplied in HTTP responses.
 
 \subsection{Challenge/Response Framework}
 
-The basics of authentication over HTTP can be found in \rfc{7235},
-now obsoleted by section 11 of \rfc{9110}.
+The basics of authentication over HTTP can be found in
+section 11 of \rfc{9110}.
 More detail can be found in those documents, but for convenience
 the basics are outlined here:
 % 401, 403, WWW-Authenticate, maybe Authorization.
@@ -234,7 +234,7 @@ the basics are outlined here:
 }
 
 The details of a number of these authentication schemes
-(\verb|<auth-scheme>| tokens and their associated parameters and semantics)
+(\verb|<auth-scheme>| strings and their associated parameters and semantics)
 are defined in IETF documents, for instance
 ``{\tt basic}'' (\rfc{7617}),
 ``{\tt digest}'' (\rfc{7616})
@@ -325,7 +325,8 @@ and should not be made to present their credentials
 multiple times where not necessary.
 The client may also be managing multiple sets of authentication data
 for multiple different authentication domains at once.
-So the authentication data must be delivered with sufficient scoping
+So the authentication data must be delivered with sufficient
+implicit or explicit scoping
 information for the client to tell for each subsequent request
 whether that authentication data should be presented.
 The nature and form of this scoping information is scheme-specific.
@@ -385,6 +386,8 @@ for which HTTP requests a given cookie should be presented.
           see Section~\ref{sec:standard-id}
   \end{itemize}
 \end{description}
+
+There is an example in Section~\ref{sec:cookie-example}.
 
 
 \subsubsection{\mbox{\tt ivoa\_x509}}\label{sec:ivoa-x509}
@@ -452,6 +455,8 @@ and is a triple of URI scheme, hostname, and port.
           see Section~\ref{sec:standard-id}
   \end{itemize}
 \end{description}
+
+There is an example in Section~\ref{sec:x509-example}.
 
 
 \subsection{Common Challenge Parameters for VO Schemes}
@@ -547,8 +552,8 @@ VO services can act in three different ways with respect to authentication:
   \item[Optional authentication:]
        anonymous requests may succeed, but authentication is possible
        and service behaviour may differ for anonymous and authenticated access;
-       for instance a TAP service may expose more tables or offer enhanced
-       usage limits to authenticated users
+       for instance a TAP service may expose more tables or relax
+       usage limits for authenticated users
 \end{description}
 % The first two cases are fairly straightforward to deal with,
 % the last one is a bit more subtle.
@@ -556,7 +561,7 @@ VO services can act in three different ways with respect to authentication:
 The standard HTTP rules for authentication cover the cases of
 no authentication and mandatory authentication:
 if a client requests a resource for which it is not authenticated,
-the response should return a 401 response with an associated
+the response should return a 401 Unauthorized code with an associated
 \header{WWW-Authenticate} challenge
 (or possibly a 403, optionally with a challenge).
 
@@ -585,7 +590,7 @@ fall into one of the following categories:
 \begin{description}
 \item[Anonymous]
       A client with no capability to authenticate operates in Anonymous mode.
-      Any attempt to retrieve protected resources will fail.
+      Any attempt to retrieve restricted resources will fail.
 \item[Reactive]
       An unauthenticated client requiring a
       resource simply requests it anonymously.
@@ -628,22 +633,42 @@ fall into one of the following categories:
       it should make subsequent requests in Anonymous or Reactive mode.
 \end{description}
 
-\subsection{VOSI Requirements}
+\subsection{Authentication Confirmation: {\tt X-VO-Authenticated}}
 
-This behaviour is slightly in conflict with the VOSI 1.1 standard:
-\begin{itemize}
-  \item HEAD must be permitted on the capabilities endpoint.
-        This is not required by VOSI 1.1, which requires only GET.
-        In the case that HEAD is not supported (405 Method Not Allowed),
-        clients may assume that optional authentication is not in place.
-  \item A GET or HEAD request to the capabilities endpoint may result
-        in a 401 or 403.  VOSI 1.1 states ``the capabilities ... binding
-        must be available to anonymous requests''.
-        A service compliant with this document should not be bound by
-        this requirement of VOSI.
-\end{itemize}
-Future revisions of VOSI \todo{or DALI?}
-may wish to take these conflicts into account.
+The case of optional authentication presents the question
+of how a client knows whether it is authenticated or not.
+A client presenting authentication data to a service that implements
+optional authentication may get a successful response,
+appropriate to an unauthenticated user,
+even if the authentication attempt failed.
+It is desirable that the client/user can determine whether this is the case.
+
+It is therefore RECOMMENDED that services include the header
+\header{X-VO-Authenticated}, with a value giving the client's
+authenticated identity, in all responses to an authenticated client.
+Responses to unauthentciated clients MUST NOT contain this header.
+
+
+\subsection{Standards Compliance}
+
+The behaviour required when probing the capabilities endpoint
+as described in Section~\ref{sec:modalities}
+is in conflict with existing standards.
+
+This proposal makes use of HEAD requests to the capabilities endpoint,
+but VOSI 1.1 only requires capabilities to support GET.
+In the case that HEAD is not supported (405 Method Not Allowed)
+a client may assume that optional authentication is not in place.
+
+This proposal allows a GET or HEAD request to the capabilities endpoint
+to result in a 401 Unauthorized or 403 Forbidden failure,
+but VOSI 1.1 Section 2, and TAP 1.1 Section 2.2 both require
+the capabilities endpoint to be accessible anonymously.
+
+A service implementing the behaviour described here may therefore
+be forced to violate existing standards.  Future evolution of those
+standards may act to resolve this conflict.
+
 
 \section{Examples}
 
@@ -710,6 +735,7 @@ SIMPLE  =                    T / Standard FITS format ...
 
 
 \subsection{Optional authentication with cookies}
+\label{sec:cookie-example}
 
 Probe the VOSI-capabilities endpoint of a TAP service to check
 for authentication modality:
@@ -764,6 +790,7 @@ Content-Type: text/xml;charset=UTF-8
 }
 
 \subsection{Mandatory authentication with certificates}
+\label{sec:x509-example}
 
 % Note: at time of writing the exchange in this example doesn't quite
 % work in real life, since the standard_id and access_url parameters
