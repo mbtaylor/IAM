@@ -9,11 +9,12 @@
 % interest groups.
 \ivoagroup{Distributed Services and Protocols}
 
-\author{Patrick Dowler}
-\author{Mark Taylor}
 \author{Sara Bertocco}
+\author{Patrick Dowler}
+\author{Brian Major}
+\author{Mark Taylor}
 
-\editor{Sara Bertocco}
+\editor{Mark Taylor}
 
 % \previousversion[????URL????]{????Concise Document Label????}
 \previousversion{This is the first public release}
@@ -119,11 +120,11 @@ is done directly
 over the HTTP connection from which the resource is requested.
 More modern/secure/flexible authentication methods however tend to
 rely on additional interaction with other, unspecified, endpoints
-prior to the request itself.  For instance OAuth requires presentation
+prior to the request itself.  For instance OAuth2 requires presentation
 of a bearer token to retrieve restricted resources from a given URL,
 but there is no way given only that URL to determine where or how
 to acquire this token;
-in a typical OAuth usage scenario such information is known up front
+in a typical OAuth2 usage scenario such information is known up front
 by the components making the request.
 
 No industry standard mechanism appears to exist to solve this problem.
@@ -649,6 +650,8 @@ It is therefore RECOMMENDED that services include the header
 \header{X-VO-Authenticated}, with a value giving the client's
 authenticated identity, in all responses to an authenticated client.
 Responses to unauthentciated clients MUST NOT contain this header.
+
+\todo{Or should this header only be required for initial login?}
 
 
 \subsection{Standards Compliance}
