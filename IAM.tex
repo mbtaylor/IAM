@@ -216,7 +216,8 @@ the basics are outlined here:
         each describing how the client can authenticate according
         to a named {\em authentication scheme}.
   \item A 401 (Unauthorized) response MUST include at least one such challenge
-  \item Other (e.g. 200, 403) responses MAY include such challenges
+  \item Other (e.g. 200 OK, 403 Forbidden) responses
+        MAY include such challenges
   \item The client may use the challenge information to decide how
         to authenticate itself to the server in subsequent requests.
         This can be done by supplying the \header{Authorization} header
@@ -339,6 +340,10 @@ The nature and form of this scoping information is scheme-specific.
 
 
 \subsection{VO-Specific Scheme Definitions}\label{sec:voschemes}
+
+This section defines some custom Authentication Schemes
+for use in \header{WWW-Authenticate} challenges,
+intended for use within the VO.
 
 % mboxes required to stop TtL barfing on underscores
 \subsubsection{\mbox{\tt ivoa\_cookie}}\label{sec:ivoa-cookie}
@@ -585,7 +590,7 @@ fall into one of the following categories:
       An unauthenticated client requiring a
       resource simply requests it anonymously.
       If the request is successful
-      (typically an HTTP 200 Success response, perhaps via some 3xx redirects),
+      (typically an HTTP 200 OK response, perhaps via some 3xx redirects),
       no authentication is attempted.
       However, if the response is a 401 or 403 accompanied by
       one or more supported challenges,
@@ -625,22 +630,32 @@ fall into one of the following categories:
 
 \subsection{VOSI Requirements}
 
-This behaviour places some additional requirements on VOSI services:
-\begin{enumerate}
-  \item HEAD must be permitted on the capabilities endpoint
-\end{enumerate}
-In the case that a VOSI service does not support this behaviour,
-it is assumed that optional authentication is not in place.
+This behaviour is slightly in conflict with the VOSI 1.1 standard:
+\begin{itemize}
+  \item HEAD must be permitted on the capabilities endpoint.
+        This is not required by VOSI 1.1, which requires only GET.
+        In the case that HEAD is not supported (405 Method Not Allowed),
+        clients may assume that optional authentication is not in place.
+  \item A GET or HEAD request to the capabilities endpoint may result
+        in a 401 or 403.  VOSI 1.1 states ``the capabilities ... binding
+        must be available to anonymous requests''.
+        A service compliant with this document should not be bound by
+        this requirement of VOSI.
+\end{itemize}
+Future revisions of VOSI \todo{or DALI?}
+may wish to take these conflicts into account.
 
 \section{Examples}
 
 This section contains examples of communications between clients
-and authenticated services.
-Client behaviour is represented using {\tt curl(1)};
+and authenticating services.
+Client behaviour is represented using the
+command-line HTTP client {\tt curl};
 this means that the HTTP headers of the query
 are not shown in the examples,
 but they can be examined by repeating the curl invocations
 with the {\tt --verbose} flag.
+The ``{\tt -D -}'' flag causes response headers to be shown.
 Some of the non-essential headers have been removed for the sake
 of brevity, and some line-breaks imposed for readability.
 
