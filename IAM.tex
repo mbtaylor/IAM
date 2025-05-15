@@ -133,8 +133,8 @@ More modern/secure/flexible authentication methods however tend to
 rely on additional interaction with other, unspecified, endpoints
 prior to the request itself.  For instance OAuth requires presentation
 of a bearer token to retrieve protected resources from a given URL,
-but there is no way given only that URL to determine where to find
-such endpoints or the details of how to acquire a token from them;
+but there is no way given only that URL to determine where or how
+to acquire this token;
 in a typical OAuth usage scenario such information is known up front
 by the components making the request.
 
@@ -144,7 +144,7 @@ acquiring all the information a desktop application requires
 to manage exchange of user credentials for authenticated access,
 given only the URL for a suitably compliant protected resource.
 
-The intent of this proposal is not to define new authentication
+The intent of this document is not to define new authentication
 mechanisms parallel to pre-existing standards, but to provide
 missing components that facilitate use from typical VO contexts
 of such existing standards.
@@ -239,7 +239,7 @@ are defined in IETF documents, for instance
 ``{\tt digest}'' (\rfc{7616})
 and
 ``{\tt bearer}'' (\rfc{6750}).
-\rfc{RFC9110} section 11.1 says
+\rfc{9110} section 11.1 says
 ``New and existing authentication schemes are
   specified independently and ought to be registered''
   (\href{https://www.iana.org/assignments/http-authschemes}{with IANA}),
@@ -310,13 +310,13 @@ Section~\ref{sec:common-params}:
 A major consideration for these schemes is authentication scope,
 that is some rule about which target URLs the authentication data
 should be submitted to.
-In the first place this authentication data,
+In general this authentication data,
 acquired in exchange for user credentials,
 is confidential information and so must not be leaked to services
 that are not trusted by its source
-(in general, to endpoints for which this authentication data is
+(that is to endpoints for which this authentication data is
 not intended).
-But in the second place, users may want to access multiple resources
+But users may want to access multiple resources
 having the same authentication arrangements
 (e.g.\ download multiple files from the same host or from
 other hosts in the same domain using the same authentication)
@@ -359,6 +359,8 @@ to present credentials at some login page in order to receive the cookie.
 The \verb|ivoa_cookie| scheme uses the parameters 
 \verb|standard_id| to convey the method of presenting these credentials, and
 \verb|access_url| to convey the location at which they should be presented.
+If multiple cookies are received, they should all be used togther
+for subsequent authentication.
 
 Cookies come with an associated scope,
 delivered at cookie acquisition time within the {\tt Set-Cookie} header
@@ -370,8 +372,12 @@ for which HTTP requests a given cookie should be presented.
   \item[Scheme name:] \verb|ivoa_cookie|
   \item[Parameters:] \mbox{}
   \begin{itemize}
-    \item \verb|standard_id| (required) --- see Section~\ref{sec:standard-id}
-    \item \verb|access_url| (required) --- see Section~\ref{sec:access-url}
+    \item \verb|access_url| (required) ---
+          indicates where to get the cookie,
+          see Section~\ref{sec:access-url}
+    \item \verb|standard_id| (required) ---
+          indicates how to authenticate at \verb|access_url|,
+          see Section~\ref{sec:standard-id}
   \end{itemize}
 \end{description}
 
@@ -423,8 +429,8 @@ and is a triple of URI scheme, hostname, and port.
   I've made up this tentative scoping rule for certificates
   without wider consultation.
   It's what the AUTH library currently does.
-  Could use Protection Space instead of Origin, which just aggregates a
-  Realm with the Origin.
+  Could use Protection Space like Basic Auth instead of Origin,
+  which just aggregates a Realm with the Origin.
   Realm is not currently one of the parameters of this scheme,
   but it could be added if anybody thought it was worth while.
 }
@@ -433,8 +439,12 @@ and is a triple of URI scheme, hostname, and port.
   \item[Scheme name:] \verb|ivoa_x509|
   \item[Parameters:] \mbox{}
   \begin{itemize}
-    \item \verb|standard_id| (required) --- see Section~\ref{sec:standard-id}
-    \item \verb|access_url| (required) --- see Section~\ref{sec:access-url}
+    \item \verb|access_url| (required) ---
+          indicates where to get the certificate,
+          see Section~\ref{sec:access-url}
+    \item \verb|standard_id| (required) ---
+          indicates how to authenticate at \verb|access_url|,
+          see Section~\ref{sec:standard-id}
   \end{itemize}
 \end{description}
 
@@ -486,7 +496,7 @@ Currently defined values are:
 \todo{
   These {\tt standard\_id} values are defined by
   the (obsolete?) SSO 2.0 standard.
-  It would make more sense if they were owned by this standard,
+  It would make more sense if they were owned by this document,
   but at time of writing these values are already in use in
   deployed services, so it could be painful to change them.
 }
@@ -499,7 +509,7 @@ Bearer Tokens form the authentication data for
 % in the title of \rfc{6749} and \rfc{6750}.
 the OAuth2 authorization framework,
 which is used by a number of VO data providers.
-A bearer token is simply an opaque string;
+A bearer token is an opaque string;
 in order to use one, the client simply presents the token
 following the keyword ``{\tt Bearer}''
 in an \header{Authorization} HTTP request header,
@@ -539,13 +549,15 @@ VO services can act in three different ways with respect to authentication:
 % the last one is a bit more subtle.
 
 The standard HTTP rules for authentication cover the cases of
-no authentication or mandatory authentication:
+no authentication and mandatory authentication:
 if a client requests a resource for which it is not authenticated,
 the response should return a 401 response with an associated
 \header{WWW-Authenticate} challenge
 (or possibly a 403, optionally with a challenge).
 
-To cover all three cases of optional authentication,
+To cover all three cases,
+including allowing clients to determine that authentication may be an
+option before presenting a possibly lengthy query,
 VOSI-compliant services should implement the following behaviour
 for both GET and HEAD requests to their VOSI-capabilities endpoint:
 \begin{itemize}
@@ -605,19 +617,30 @@ fall into one of the following categories:
       if a supported challenge is present it may give the user the
       option to authenticate, and if successful make subsequent requests
       in Proactive mode.
-      If no challenges are present (no authentication)
-      or optional authentication fails,
+      If no challenges are present (no authentication),
+      or if the user elects not to authenticate,
+      or if optional authentication fails,
       it should make subsequent requests in Anonymous or Reactive mode.
 \end{description}
+
+\subsection{VOSI Requirements}
+
+This behaviour places some additional requirements on VOSI services:
+\begin{enumerate}
+  \item HEAD must be permitted on the capabilities endpoint
+\end{enumerate}
+In the case that a VOSI service does not support this behaviour,
+it is assumed that optional authentication is not in place.
 
 \section{Examples}
 
 This section contains examples of communications between clients
 and authenticated services.
 Client behaviour is represented using {\tt curl(1)};
-this means that the query headers are not shown in the examples,
+this means that the HTTP headers of the query
+are not shown in the examples,
 but they can be examined by repeating the curl invocations
-using the {\tt --verbose} flag.
+with the {\tt --verbose} flag.
 Some of the non-essential headers have been removed for the sake
 of brevity, and some line-breaks imposed for readability.
 
@@ -626,26 +649,31 @@ of brevity, and some line-breaks imposed for readability.
 Request a resource anonymously:
 {\footnotesize
 \begin{verbatim}
-% curl 'http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot' -IL
+% curl 'http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot' -D - -L
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Basic realm="Shangri-la"
 Content-Type: text/html;charset=utf-8
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+...
 \end{verbatim}
 }
 
 \noindent
 This gives a 401 Unauthorized response
-with a standard Basic challenge, which we can use:
+with a standard Basic challenge.
+We therefore resubmit the query with a username and password:
 {\footnotesize
 \begin{verbatim}
 % curl -u topcat:topcat -L -D -
        http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot
 HTTP/1.1 200 OK
+X-Vo-Authenticated: topcat
 Content-Type: application/x-votable+xml
 
 <?xml version='1.0' encoding='utf-8'?>
 <VOTABLE version="1.5" ...
-         ...
+...
 \end{verbatim}
 }
 
@@ -659,9 +687,11 @@ directory or its descendants)
 % curl -u topcat:topcat -L -D -
        http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits
 HTTP/1.1 200 OK
+X-Vo-Authenticated: topcat
 Content-Type: application/fits
 
 SIMPLE  =                    T / Standard FITS format ...
+...
 \end{verbatim}
 }
 
@@ -709,7 +739,7 @@ parameter and other relevant parameters in the returned Set-Cookie header
 in accordance with \rfc{6265}):
 {\footnotesize
 \begin{verbatim}
-% curl -D - -o /dev/null -s --header 'Cookie: JSESSIONID=474DEF8CBB046D47294'
+% curl -D - -s --header 'Cookie: JSESSIONID=474DEF8CBB046D47294'
        https://gea.esac.esa.int/tap-server/tap/async
 HTTP/1.1 200 200
 X-VO-Authenticated: mtaylo02
@@ -734,7 +764,7 @@ Probe the VOSI-capabilities endpoint of a TAP service to check
 for authentication modality:
 {\footnotesize
 \begin{verbatim}
-% curl -I https://ws-uv.canfar.net/youcat/capabilities
+% curl --head https://ws-uv.canfar.net/youcat/capabilities
 HTTP/1.1 200
 www-authenticate: ivoa_x509 standard_id="ivo://ivoa.net/sso#BasicAA",
                   access_url="https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred/generate"
