@@ -82,7 +82,8 @@ ways:
 \end{enumerate}
 In the first, TAP-like, case additional information is available to the
 client in the form of the Registry record for the service in question,
-as defined by VOResource and its service-specific extensions.
+as defined by VOResource \citep{2008ivoa.spec.0222P}
+and its service-specific extensions.
 This could in principle contain metadata describing the authentication
 method along with any required ancillary information such as
 login endpoints.
@@ -110,7 +111,8 @@ have no information about the VO service which produced that URL.
 Then the only opportunity to acquire information about how to authenticate
 is by examining the URL itself, or by HTTP communications with that URL.
 
-The HTTP Basic Authentication method (\rfc{7617}) can be used in this scenario,
+The HTTP Basic Authentication method (\rfc{7617}, \citet{std:RFC7617})
+can be used in this scenario,
 since all negotiation involving user credentials ---
 request and supply of username and password ---
 is done directly
@@ -137,7 +139,8 @@ of such existing standards.
 
 Its approach is to define some VO-specific authentication schemes
 for use with the \header{WWW-Authenticate} header defined by
-\rfc{9110} Section 11 (which obsoletes the earlier \rfc{7235}).
+Section 11 of \rfc{9110} \citep{std:RFC9110},
+which obsoletes the earlier \rfc{7235} \citep{std:RFC7235}.
 The proposal is aligned as much as possible with standard web
 technology, requiring only some custom authentication schemes
 which can direct the client to use existing standard authentication
@@ -174,6 +177,18 @@ they are free to do so.
 
 Fig.~\ref{fig:archdiag} shows the role this document plays within the
 IVOA architecture \citep{2021ivoa.spec.1101D}.
+
+IAM provides a way to advertise authentication methods
+associated with existing VO services.
+For services like TAP \citep{2019ivoa.spec.0927D}
+that comply with VOSI \citep{2017ivoa.spec.0524G} to
+offer service description documents at locations
+defined by DALI \citep{2017ivoa.spec.0517D}
+clients can discover these methods
+using an up-front query to the VOSI capabilities endpoint.
+For non-VOSI services such as DataLink \citep{2015ivoa.spec.0617D}
+such discovery is done reactively.
+
 
 % Nomenclature?
 %  - domain
@@ -223,9 +238,9 @@ The details of a number of these authentication schemes
 (\verb|<auth-scheme>| strings and their associated parameters and semantics)
 are defined in IETF documents, for instance
 ``{\tt basic}'' (\rfc{7617}),
-``{\tt digest}'' (\rfc{7616})
+``{\tt digest}'' (\rfc{7616} \citet{std:RFC7616})
 and
-``{\tt bearer}'' (\rfc{6750}).
+``{\tt bearer}'' (\rfc{6750} \citet{std:RFC6750}).
 \rfc{9110} section 11.1 says
 ``New and existing authentication schemes are
   specified independently and ought to be registered''
@@ -341,10 +356,11 @@ Cookies are text strings received in the {\tt Set-Cookie}
 response header of some HTTP exchange,
 and presented via the {\tt Cookie} request header of subsequent
 interactions with the same service.
-This procedure is defined in \rfc{6265}.
+This procedure is defined in \rfc{6265} \citep{std:RFC6265}.
 A parallel mechanism using the {\tt Set-Cookie2} and {\tt Cookie2}
 headers was also defined by an earlier version of the cookie protocol
-defined in \rfc{2965}, but this is now deprecated and rarely used.
+defined in \rfc{2965} \citep{std:RFC2965},
+but this is now deprecated and rarely used.
 
 Where cookies are used for authentication, the user is generally required
 to present credentials at some login page in order to receive the cookie.
@@ -850,7 +866,7 @@ No previous versions yet.
 
 % NOTE: IVOA recommendations must be cited from docrepo rather than ivoabib
 % (REC entries there are for legacy documents only)
-\bibliography{ivoatex/ivoabib,ivoatex/docrepo}
+\bibliography{ivoatex/ivoabib,ivoatex/docrepo,localrefs}
 
 
 \end{document}

@@ -42,6 +42,7 @@
   
   <svg x="686" y="255"><rect height="18" x="0" y="0" width="28" class="rec"/><text class="doclabel" y="12.5" x="14">TAP</text></svg>
   <svg x="628" y="405"><rect height="18" x="0" y="0" width="53" class="rec"/><text class="doclabel" y="12.5" x="26.5">DataLink</text></svg>
+  <svg x="310" y="290"><rect height="18" x="0" y="0" width="33" class="rec"/><text class="doclabel" y="12.5" x="16.5">DALI</text></svg>
 
   
 
