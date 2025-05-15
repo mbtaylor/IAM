@@ -664,7 +664,7 @@ of brevity, and some line-breaks imposed for readability.
 Request a resource anonymously:
 {\footnotesize
 \begin{verbatim}
-% curl 'http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot' -D - -L
+% curl -D - http://example.org/data/release/table99.vot
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Basic realm="Shangri-la"
 Content-Type: text/html;charset=utf-8
@@ -680,10 +680,9 @@ with a standard Basic challenge.
 We therefore resubmit the query with a username and password:
 {\footnotesize
 \begin{verbatim}
-% curl -u topcat:topcat -L -D -
-       http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot
+% curl -u batman:xxxx -D - http://example.org/data/release/table99.vot
 HTTP/1.1 200 OK
-X-Vo-Authenticated: topcat
+X-Vo-Authenticated: batman
 Content-Type: application/x-votable+xml
 
 <?xml version='1.0' encoding='utf-8'?>
@@ -699,10 +698,9 @@ preemptively for other resources within the same scope
 directory or its descendants)
 {\footnotesize
 \begin{verbatim}
-% curl -u topcat:topcat -L -D -
-       http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits
+% curl -u batman:xxxx -D - http://example.org/data/release/image101.fits
 HTTP/1.1 200 OK
-X-Vo-Authenticated: topcat
+X-Vo-Authenticated: batman
 Content-Type: application/fits
 
 SIMPLE  =                    T / Standard FITS format ...
@@ -710,9 +708,6 @@ SIMPLE  =                    T / Standard FITS format ...
 \end{verbatim}
 }
 
-\noindent
-This example, working at the time of writing, uses a dummy service for 
-which the username and password are not sensitive.
 
 \subsection{Optional authentication with cookies}
 
@@ -721,7 +716,7 @@ for authentication modality:
 {\footnotesize
 \begin{verbatim}
 % curl --head https://gea.esac.esa.int/tap-server/tap/capabilities
-HTTP/1.1 200 200
+HTTP/1.1 200 OK
 Content-Type: text/xml;charset=UTF-8
 WWW-Authenticate: ivoa_cookie standard_id="ivo://ivoa.net/sso#tls-with-password",
                               access_url="https://gea.esac.esa.int/tap-server/login"
@@ -729,7 +724,7 @@ WWW-Authenticate: ivoa_cookie standard_id="ivo://ivoa.net/sso#tls-with-password"
 }
 
 \noindent
-The 200 Success response with a challenge means that optional authentication
+The 200 OK response with a challenge means that optional authentication
 is available.
 We choose to authenticate.
 The \verb|ivoa_cookie| challenge is recognised with \verb|standard_id|
@@ -738,9 +733,9 @@ by POSTing \verb|username| and \verb|password| parameters
 to the \verb|access_url|:
 {\footnotesize
 \begin{verbatim}
-% curl -D - -d username=mtaylo02 -d password=xxxx
+% curl -D - -d username=batman -d password=xxxx
        https://gea.esac.esa.int/tap-server/login -s -o /dev/null
-HTTP/1.1 200 200
+HTTP/1.1 200 OK
 Set-Cookie: JSESSIONID=474DEF8CBB046D47294; Path=/tap-server; Secure; HttpOnly
 Content-Type: text/plain; charset=UTF-8
 \end{verbatim}
@@ -754,10 +749,10 @@ parameter and other relevant parameters in the returned Set-Cookie header
 in accordance with \rfc{6265}):
 {\footnotesize
 \begin{verbatim}
-% curl -D - -s --header 'Cookie: JSESSIONID=474DEF8CBB046D47294'
+% curl -D - --header 'Cookie: JSESSIONID=474DEF8CBB046D47294'
        https://gea.esac.esa.int/tap-server/tap/async
-HTTP/1.1 200 200
-X-VO-Authenticated: mtaylo02
+HTTP/1.1 200 OK
+X-VO-Authenticated: batman
 Content-Type: text/xml;charset=UTF-8
 
 <?xml version="1.0" encoding="UTF-8"?>
@@ -768,7 +763,7 @@ Content-Type: text/xml;charset=UTF-8
 \end{verbatim}
 }
 
-\subsection{Optional authentication with certificates}
+\subsection{Mandatory authentication with certificates}
 
 % Note: at time of writing the exchange in this example doesn't quite
 % work in real life, since the standard_id and access_url parameters
@@ -779,28 +774,27 @@ Probe the VOSI-capabilities endpoint of a TAP service to check
 for authentication modality:
 {\footnotesize
 \begin{verbatim}
-% curl --head https://ws-uv.canfar.net/youcat/capabilities
-HTTP/1.1 200
+% curl --head https://abc.example.net/tap/capabilities
+HTTP/1.1 401 Unauthorized
 www-authenticate: ivoa_x509 standard_id="ivo://ivoa.net/sso#BasicAA",
-                  access_url="https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred/generate"
+                  access_url="https://xyz.example.net/cert/generate"
 www-authenticate: Bearer
 \end{verbatim}
 }
 
 \noindent
-The 200 Success response with challenges means that optional authentication
-is available.
+The 401 Unauthorized response means that authentication
+is required to access the service.
 The \verb|ivoa_x509| challenge is recognised with \verb|standard_id|
 of \verb|BasicAA|, so transmit user credentials using
 HTTP Basic Authentication to the \verb|access_url|:
 
 {\footnotesize
 \begin{verbatim}
-% curl -s -u mbt:xxxx
-       https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred/generate
-HTTP/1.1 200
-x-vo-authenticated: mbt
-content-disposition: inline; filename="cadcproxy.pem"
+% curl -u batman:xxxx -D - https://xyz.example.net/cert/generate
+HTTP/1.1 200 OK
+x-vo-authenticated: batman
+content-disposition: inline; filename="cert.pem"
 content-type: application/x-pem-file
 strict-transport-security: max-age=63072000
 
@@ -815,14 +809,13 @@ EwJDQTEZMBcGA1UECAwQQnJpdGlzaCBDb2x1bWJpYTENMAsGA1UECgwEQ0FEQzEd
 
 \noindent
 The response is a PEM-encoded client certificate, which we copy
-to a local file, \verb|mbtcert.pem|.
+to a local file, \verb|batcert.pem|.
 This can then be used to sign subsequent requests to the same service:
 {\footnotesize
 \begin{verbatim}
-% curl --cert mbtcert.pem https://ws-uv.canfar.net/youcat/async -D -
-HTTP/1.1 200
-server: OpenCADC/cadc-rest
-x-vo-authenticated: mbt
+% curl --cert batcert.pem -D - https://abc.example.net/tap/async
+HTTP/1.1 200 OK
+x-vo-authenticated: batman
 content-type: text/xml
 
 <?xml version="1.0" encoding="UTF-8"?>
