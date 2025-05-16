@@ -9,10 +9,10 @@
 % interest groups.
 \ivoagroup{Distributed Services and Protocols}
 
+\author{Mark Taylor}
 \author{Sara Bertocco}
 \author{Patrick Dowler}
 \author{Brian Major}
-\author{Mark Taylor}
 
 \editor{Mark Taylor}
 
@@ -66,7 +66,7 @@ auditing and limiting service usage in the era of science platforms.
 % but not covered in all contexts by existing industry-standard machinery.
 
 Where the client is browser-based
-it is often possible to integrate information about the authentication
+a service can often integrate information about the authentication
 methods required with the web page or web application through which
 it is accessed.
 \todo{is this true?  I don't understand browser-based authentication
@@ -100,7 +100,7 @@ there is no information about where to find a corresponding
 registry record or VOSI document,
 or even a guarantee or likelihood that such a record exists.
 The URL in question may not even have come from a DataLink query,
-it could simply be a pointer to a restricted resource like a
+it could simply be a pointer to a protected resource like a
 FITS file or VOTable in a secured filestore.
 Such a URL may have been acquired from a VO query in the application
 wishing to dereference it, in which case some authentication context
@@ -112,53 +112,57 @@ have no information about the VO service which produced that URL.
 Then the only opportunity to acquire information about how to authenticate
 is by examining the URL itself, or by HTTP communications with that URL.
 
-The HTTP Basic Authentication method (\rfc{7617}, \citet{std:RFC7617})
+The HTTP Basic Authentication method (\rfc{7617})
 can be used in this scenario,
-since all negotiation involving user credentials ---
+since all negotiation involving user credentials and permits ---
 request and supply of username and password ---
 is done directly
 over the HTTP connection from which the resource is requested.
 More modern/secure/flexible authentication methods however tend to
 rely on additional interaction with other, unspecified, endpoints
 prior to the request itself.  For instance OAuth2 requires presentation
-of a bearer token to retrieve restricted resources from a given URL,
+of a bearer token to retrieve protected resources from a given URL,
 but there is no way given only that URL to determine where or how
 to acquire this token;
 in a typical OAuth2 usage scenario such information is known up front
 by the components making the request.
 
-No industry standard mechanism appears to exist to solve this problem.
-This document therefore proposes some VO-standard mechanisms for
-acquiring all the information a desktop application requires
-to manage exchange of user credentials for authenticated access,
-given only the URL for a suitably compliant restricted resource.
+No industry standard mechanism appears to exist to solve the
+problem of how a client can authenticate without such up-front
+information.
+This document therefore proposes some VO-standard mechanisms
+by which a service can advertise to clients all the information
+required to authenticate,
+in particular how to exchange user credentials for an authentication permit,
+given only the URL for a suitably compliant protected resource.
+
+To address this, this document defines (Section~\ref{sec:voschemes})
+some VO-specific authentication schemes
+for use in \header{WWW-Authenticate} challenges.
+It also describes (Section~\ref{sec:cr-use}) how to discover the
+authentication options for VO services.
 
 The intent of this document is not to define new authentication
 mechanisms parallel to pre-existing standards, but to provide
-missing components that facilitate use from typical VO contexts
-of such existing standards.
+missing components that facilitate use of such existing standards
+from certain VO contexts, especially by non-browser clients.
+Authenticated services in the VO are not expected to change their
+authentication frameworks to any ``VO-sanctioned'' technology,
+but by implementing the proposals here they can become usable
+in a broader range of scenarios.
+VO services however are not required to use any of the  
+mechanisms proposed in this document; if they can establish the
+client interoperability they require using other mechanisms
+they are free to do so.
 
-Its approach is to define some VO-specific authentication schemes
-for use with the \header{WWW-Authenticate} header defined by
-Section 11 of \rfc{9110} \citep{std:RFC9110},
-which obsoletes the earlier \rfc{7235} \citep{std:RFC7235}.
-The proposal is aligned as much as possible with standard web
-technology, requiring only some custom authentication schemes
-which can direct the client to use existing standard authentication
-mechanisms.
-
-Given that the registry record can only be discovered for some
-(TAP-like) and not other (DataLink-like) authentication scenarios,
+Given that, as explained above,
+the VOResource record can only be discovered in some (TAP-like)
+and not other (DataLink-like) authentication scenarios,
 it is no longer recommended to base discovery of authentication methods
 on the {\tt securityMethod} element
 defined by VOResource, as described by SSO 2.0.
 Instead, the proposal here is recommended for both TAP-like and DataLink-like
 scenarios.
-
-Authenticated services in the VO are not required to use any of the  
-mechanisms proposed in this document; if they can establish the
-client interoperability they require using other mechanisms
-they are free to do so.
 
 \subsection{Role within the VO Architecture}
 
@@ -191,11 +195,37 @@ For non-VOSI services such as DataLink \citep{2015ivoa.spec.0617D}
 such discovery is done reactively.
 
 
-% Nomenclature?
-%  - domain
-%  - challenge
-%  - credentials
-%  - authentication data
+\subsection{Terminology}
+
+The following terms are used with specific meanings in this document:
+
+\todo{Are these OK? Do they align with established usage?
+      Are there better choices?}
+\begin{description}
+\item[protected]
+      A service or resource that can only be accessed by authenticated users
+\item[permit]
+      Information that a client can supply with an HTTP request to
+      prove its authenticated identity;
+      may for instance be a token, cookie or certificate
+\item[credentials]
+      Secret information known to a user, such as a username and password,
+      that can be used to acquire a {\em permit}
+\item[authentication domain]
+      A set of HTTP endpoints sharing the same authentication arrangements;
+      the same {\em permit\/} is applicable to all members of the same domain
+      and should not be presented to endpoints outside that domain
+\item[challenge]
+      A structured invitation to authenticate using
+      a particular {\em permit\/} type,
+      presented within a \header{WWW-Authenticate} header
+\item[authentication scheme]
+      A particular type of {\em challenge\/} with its own rules and syntax,
+      or the short string labelling this type
+\end{description}
+The terms {\em challenge\/} and {\em authentication scheme} are
+defined by \rfc{9110} \citep{std:RFC9110}
+and explained further in Section~\ref{sec:challenge-response}.
 
 
 \section{Challenge and Response}
@@ -204,9 +234,12 @@ The standard way to negotiate authentication over HTTP is using
 authentication challenges supplied in HTTP responses.
 
 \subsection{Challenge/Response Framework}
+\label{sec:challenge-response}
 
 The basics of authentication over HTTP can be found in
-section 11 of \rfc{9110}.
+section 11 of \rfc{9110} \citep{std:RFC9110};
+that document obsoletes \rfc{7235} \citep{std:RFC7235}
+which introduced this protocol.
 More detail can be found in those documents, but for convenience
 the basics are outlined here:
 % 401, 403, WWW-Authenticate, maybe Authorization.
@@ -224,6 +257,7 @@ the basics are outlined here:
         to authenticate itself to the server in subsequent requests.
         This can be done by supplying the \header{Authorization} header
         with scheme-specific content.
+        In case of multiple challenges, the client is free to choose one.
   \item The form of a challenge is:\\
         \verb|   <auth-scheme> [<scheme-specific-parameters>]|
   \item The form of the \header{WWW-Authenticate} header is:\\
@@ -238,7 +272,7 @@ the basics are outlined here:
 The details of a number of these authentication schemes
 (\verb|<auth-scheme>| strings and their associated parameters and semantics)
 are defined in IETF documents, for instance
-``{\tt basic}'' (\rfc{7617}),
+``{\tt basic}'' (\rfc{7617} \citet{std:RFC7617})
 ``{\tt digest}'' (\rfc{7616} \citet{std:RFC7616})
 and
 ``{\tt bearer}'' (\rfc{6750} \citet{std:RFC6750}).
@@ -252,13 +286,15 @@ but it does not say that they MUST be so registered.
 
 \subsection{Authentication Schemes in the VO}
 
-Where one of the standard registered authentication schemes is
+Where one of the standard authentication schemes is
 suitable for use by a particular VO service and its clients,
 it should be used.
 For instance Basic or Digest authentication provide all required
 information about the authentication procedure within the headers,
-since the client simply supplies credentials directly to the target
-service in subsequent requests.  In these cases it is highly recommended
+since the client simply supplies
+(somewhat obscured) username and password
+to the target service in subsequent requests.
+If these schemes are used it is highly recommended
 to require a TLS connection (HTTPS not HTTP) to avoid interception of
 the credentials.
 
@@ -288,12 +324,12 @@ clients in scheme-specific challenge parameters.
 The authentication schemes defined in this section
 generally define:
 \begin{enumerate}
-  \item How clients are to present authentication data in future requests
+  \item How clients are to present a permit in future requests
         to a service --- this is defined by the identity of the scheme
-  \item How they are to acquire such authentication data ---
+  \item How they are to acquire such a permit ---
         this is communicated by the scheme-specific parameters
 \end{enumerate}
-Acquiring authentication data (such as a cookie, certificate or token)
+Acquiring a permit (such as a cookie, certificate or token)
 typically requires supplying credentials known to the user 
 (such as a username and password) in a particular way to a particular
 endpoint.
@@ -302,49 +338,30 @@ Section~\ref{sec:common-params}:
 \verb|access_url| for the credential submission endpoint and
 \verb|standard_id| for the credential submission method.
 
-\todo{
-  Terminology: is ``authentication data'' and ``credentials'' OK?
-  Is there better language for designating these things?
-}
-
 
 \subsection{Scope}\label{sec:scope}
 
 A major consideration for these schemes is authentication scope,
-that is some rule about which target URLs the authentication data
-should be submitted to.
-In general this authentication data,
-acquired in exchange for user credentials,
-is confidential information and so must not be leaked to services
-that are not trusted by its source
-(that is to endpoints for which this authentication data is
-not intended).
-But users may want to access multiple resources
-having the same authentication arrangements
-(e.g.\ download multiple files from the same host or from
-other hosts in the same domain using the same authentication)
+that is some rule about the domain (set of URLs) within which an
+acquired permit is valid.
+The permit is confidential information and so must not be leaked to services
+outside the domain.
+But users may want to access multiple resources within the same domain
 and should not be made to present their credentials
 multiple times where not necessary.
-The client may also be managing multiple sets of authentication data
-for multiple different authentication domains at once.
-So the authentication data must be delivered with sufficient
+The client may also be managing multiple permits
+for multiple different domains at once.
+So the permit must be delivered with sufficient
 implicit or explicit scoping
 information for the client to tell for each subsequent request
-whether that authentication data should be presented.
+whether that permit should be presented.
 The nature and form of this scoping information is scheme-specific.
 
-% False negatives (failure to identify a URL for which existing
-% authentication data could be used) are annoying since they lead
-% to repeated unnecessary authentication attempts.
-% False positives (incorrectly identifying a URL as a suitable
-% target for existing authentication data) can lead to leaking of
-% credentials and must be avoided.
-%%  - actually this isn't necessarily true, it's scheme-dependent
 
 
 \subsection{VO-Specific Scheme Definitions}\label{sec:voschemes}
 
-This section defines some custom Authentication Schemes
+This section describes some custom Authentication Schemes
 for use in \header{WWW-Authenticate} challenges,
 intended for use within the VO.
 
@@ -352,30 +369,8 @@ intended for use within the VO.
 \subsubsection{\mbox{\tt ivoa\_cookie}}\label{sec:ivoa-cookie}
 
 The \verb|ivoa_cookie| authentication scheme indicates that the service
-will accept cookies for authentication.
-Cookies are text strings received in the {\tt Set-Cookie}
-response header of some HTTP exchange,
-and presented via the {\tt Cookie} request header of subsequent
-interactions with the same service.
-This procedure is defined in \rfc{6265} \citep{std:RFC6265}.
-A parallel mechanism using the {\tt Set-Cookie2} and {\tt Cookie2}
-headers was also defined by an earlier version of the cookie protocol
-defined in \rfc{2965} \citep{std:RFC2965},
-but this is now deprecated and rarely used.
-
-Where cookies are used for authentication, the user is generally required
-to present credentials at some login page in order to receive the cookie.
-The \verb|ivoa_cookie| scheme uses the parameters 
-\verb|standard_id| to convey the method of presenting these credentials, and
-\verb|access_url| to convey the location at which they should be presented.
-If multiple cookies are received, they should all be used togther
-for subsequent authentication.
-
-Cookies come with an associated scope,
-delivered at cookie acquisition time within the {\tt Set-Cookie} header
-as defined by \rfc{6265}.
-Compliant cookie-handling libraries are therefore able to determine
-for which HTTP requests a given cookie should be presented.
+will accept cookies as authentication permits,
+and describes how to acquire such cookies.
 
 \begin{description}
   \item[Scheme name:] \verb|ivoa_cookie|
@@ -388,62 +383,48 @@ for which HTTP requests a given cookie should be presented.
           indicates how to authenticate at \verb|access_url|,
           see Section~\ref{sec:standard-id}
   \end{itemize}
+  \item[Login response:] \header{Set-Cookie} header
+  \item[Scope:] As defined by \rfc{6265}
 \end{description}
+
+Cookies are text strings received in the {\tt Set-Cookie}
+response header of some HTTP exchange,
+and presented via the {\tt Cookie} request header of subsequent
+requests to the same service.
+This procedure is defined in \rfc{6265} \citep{std:RFC6265}.
+A parallel mechanism using the {\tt Set-Cookie2} and {\tt Cookie2}
+headers was also defined by an earlier version of the cookie protocol
+defined in \rfc{2965} \citep{std:RFC2965},
+but this is now deprecated and rarely used.
+
+To use this scheme, the client must present a username and password
+to the endpoint given by the \verb|access_url| parameter,
+in the form defined by the \verb|standard_id| parameter.
+If authentication is successful, a 200 OK response must be returned
+including a \header{Set-Cookie} header containing one or more cookies
+suitable as an authentication permit.
+If authentication fails, a 401 or 403 response should be returned.
+Once in possession of the returned cookie or cookies,
+the client can present them in a \header{Cookie} header as defined
+by \rfc{6265} for subsequent requests to protected resources.
+
+Cookies come with an associated scope, delivered within the
+the {\tt Set-Cookie} header, so compliant cookie-handling
+libraries are able to determine the domain for a given cookie.
 
 There is an example in Section~\ref{sec:cookie-example}.
 
 
 \subsubsection{\mbox{\tt ivoa\_x509}}\label{sec:ivoa-x509}
 
+The \verb|ivoa_x509| authentication scheme indicates that the service
+will accept X.509 client certificates as authentication permits,
+and describes how to acquire such certificates.
+
 \todo{
   I am pretty ignorant about X.509.
   This section should be checked by
   somebody who knows what they're talking about.
-}
-
-The \verb|ivoa_x509| authentication scheme indicates that the
-service will use X.509 client certificates for authentication.
-A client in posession of a client certificate can use it to
-sign TLS (HTTPS) connections, and the service can examine the signature
-to authenticate the identity of the client.
-
-\todo{
-  Do we need to distinguish proxy from non-proxy certificates here?
-  I don't actually understand what proxy certificates are.
-}
-
-For use with this scheme, the user is required to present credentials
-at some login page in order to receive a suitable client certificate
-and its private key.
-The \verb|ivoa_x509| scheme uses the parameters 
-\verb|standard_id| to convey the method of presenting these credentials, and
-\verb|access_url| to convey the location at which they should be presented.
-The response from this login page is an X.509 certificate chain 
-including its private key, in PEM format.
-Current implementations support only RSA encoding.
-The certificate response SHOULD have a Content-Type header value of
-{\tt application/x-pem-file} \todo{should it?}.
-
-Since client certificates achieve authentication by signing requests
-using public key cryptography, they cannot be stolen by third parties,
-so there are no security issues associated with attempting to use them
-to access services outside of the intended authentication domain.
-However using them for inapplicable services is inefficient and clumsy
-so some scoping is desirable.
-The applicable scope of a certificate acquired using this scheme is
-considered to be the Origin of the URL from which
-the challenge was received.
-Origin is defined by \rfc{9110}
-and is a triple of URI scheme, hostname, and port.
-
-\todo{
-  I've made up this tentative scoping rule for certificates
-  without wider consultation.
-  It's what the AUTH library currently does.
-  Could use Protection Space like Basic Auth instead of Origin,
-  which just aggregates a Realm with the Origin.
-  Realm is not currently one of the parameters of this scheme,
-  but it could be added if anybody thought it was worth while.
 }
 
 \begin{description}
@@ -457,7 +438,54 @@ and is a triple of URI scheme, hostname, and port.
           indicates how to authenticate at \verb|access_url|,
           see Section~\ref{sec:standard-id}
   \end{itemize}
+  \item[Login response:] PEM-encoded X.509 certificate chain
+                         including private key
+  \item[Scope:] Origin of challenge URL
 \end{description}
+
+
+A client in posession of a client certificate can use it to
+sign TLS (HTTPS) connections, and the service can examine the signature
+to authenticate the identity of the client.
+
+\todo{
+  Do we need to distinguish proxy from non-proxy certificates here?
+  I don't actually understand what proxy certificates are.
+}
+
+To use this scheme, the client must present a username and password
+to the endpoint given by the \verb|access_url| parameter,
+in the form defined by the \verb|standard_id| parameter.
+If authentication is successful, a 200 OK response must be returned
+whose body is an X.509 certificate chain including its private key,
+in PEM format.  The \header{Content-Type} header of this response
+should be ``{\tt application/x-pem-file}''. \todo{should it?}
+Current implementations support only RSA encoding.
+If authentication fails, a 401 or 403 response should be returned.
+Once in possession of the returned certificate,
+the client can use it to sign subsequent requests to protected resources.
+
+Since client certificates achieve authentication by signing requests
+using public key cryptography, they cannot be stolen by third parties,
+so there are no security issues associated with attempting to use them
+to access services outside of the intended authentication domain.
+However using them for inapplicable services is inefficient and clumsy
+so some scoping is desirable.
+The authentication domain of a certificate acquired using this scheme is
+considered to be the {\em Origin\/} of the URL from which
+the challenge was received.
+Origin is defined by section 4.3.1 of \rfc{9110}
+and is a normalised triple of URI scheme, hostname, and port.
+
+\todo{
+  I've made up this tentative scoping rule for certificates
+  without wider consultation.
+  It's what the AUTH library currently does.
+  Could use Protection Space like Basic Auth instead of Origin,
+  which just aggregates a Realm with the Origin.
+  Realm is not currently one of the parameters of this scheme,
+  but it could be added if anybody thought it was worth while.
+}
 
 There is an example in Section~\ref{sec:x509-example}.
 
@@ -465,21 +493,20 @@ There is an example in Section~\ref{sec:x509-example}.
 \subsection{Common Challenge Parameters for VO Schemes}
 \label{sec:common-params}
 
-Some of the authentication schemes described in Section~\ref{sec:voschemes}
+Authentication schemes described in Section~\ref{sec:voschemes}
 rely on a stage where the user exchanges 
 % secret credentials, but so far always...
-a username and password
-for some authentication data that can be used in subsequent authenticated
-interactions.
+credentials (a username and password) for a permit.
 This section defines scheme parameters that
-tell the client exactly how this exchange is to be done.
+tell the client exactly where and how to present these credentials.
+The content of the response is scheme-specific.
 
 \subsubsection{\mbox{\tt access\_url}}
 \label{sec:access-url}
 
 This parameter reports where to log in:
 the value is the endpoint at which
-exchange of user credentials for authentication data
+exchange of user credentials for a permit
 takes place.
 
 \subsubsection{\mbox{\tt standard\_id}}
@@ -487,9 +514,9 @@ takes place.
 
 This parameter explains how to log in:
 it defines the protocol for exchanging user credentials
-for authentication data.
+for a permit.
 Username and password are supplied in the HTTP request as described below,
-and the response returns scheme-specific authentication data.
+and the response returns a scheme-specific permit.
 Currently defined values are:
 
 \begin{description}
@@ -517,10 +544,10 @@ Currently defined values are:
 
 \subsection{Bearer Tokens}
 
-Bearer Tokens form the authentication data for
-% It's called an "Authorization Framework"
-% in the title of \rfc{6749} and \rfc{6750}.
+Bearer Tokens form the permit for
 the OAuth2 authorization framework,
+% Terminology: it's called an "Authorization Framework"
+% in the title of \rfc{6749} and \rfc{6750}.
 which is used by a number of VO data providers.
 A bearer token is an opaque string;
 in order to use one, the client simply presents the token
@@ -534,18 +561,19 @@ any of these are suitable for use by clients lacking prior knowledge
 of the services for which they are intended,
 and no standard scoping mechanisms seem to be defined.
 
-This document does not therefore currently recommend any standard way
-to use Bearer Tokens within the VO, but it is hoped that
-progress will be made on this in future.
+This document does not therefore currently recommend any way in
+which non-browser VO clients can use Bearer Tokens,
+but it is hoped that progress will be made on this in future.
 
 
 
 \section{Challenge/Response Use in the VO}
+\label{sec:cr-use}
 
 \subsection{Authentication Modalities}
 \label{sec:modalities}
 
-VO services can act in three different ways with respect to authentication:
+VO services can behave in three different ways with respect to authentication:
 \begin{description}
   \item[No authentication:]
        all access is anonymous
@@ -566,7 +594,7 @@ no authentication and mandatory authentication:
 if a client requests a resource for which it is not authenticated,
 the response should return a 401 Unauthorized code with an associated
 \header{WWW-Authenticate} challenge
-(or possibly a 403, optionally with a challenge).
+(or possibly a 403 Forbidden, optionally with a challenge).
 
 To cover all three cases,
 including allowing clients to determine that authentication may be an
@@ -583,7 +611,7 @@ for both GET and HEAD requests to their VOSI-capabilities endpoint:
 \end{itemize}
 VO clients can then probe the capabilities endpoint using an HTTP HEAD
 or GET request to find out whether an authentication attempt should be
-required or offered to the user prior to making queries on the service.
+required or offered to the user, prior to making queries on the service.
 
 \subsection{Client Behaviour}
 
@@ -593,7 +621,7 @@ fall into one of the following categories:
 \begin{description}
 \item[Anonymous]
       A client with no capability to authenticate operates in Anonymous mode.
-      Any attempt to retrieve restricted resources will fail.
+      Any attempt to retrieve protected resources will fail.
 \item[Reactive]
       An unauthenticated client requiring a
       resource simply requests it anonymously.
@@ -604,17 +632,18 @@ fall into one of the following categories:
       one or more supported challenges,
       the client chooses a challenge it is prepared to use,
       and negotiates challenge-specific authentication as described above.
-      On successful authentication, the authentication data is used to
-      retrieve the resource, and is also cached for future use.
+      On successful authentication, the acquired permit is used to
+      retrieve the resource, and is also cached alongside its domain
+      for future use.
       In case of a 401 or 403 without any challenges supported by the client,
       or if authentication fails, retrieval of the resource fails.
 \item[Proactive]
       Once a client has authenticated to a domain,
       it should accompany any subsequent request to a resource
       in the same domain
-      with the authentication data that it has cached from that domain.
-      In this way, the user is not required to perform the same
-      authentication on multiple occasions.
+      with the permit that it has cached from that domain.
+      In this way, the user is not required to present credentials
+      multiple times for the same domain.
 \item[Preemptive]
       When talking to a VOSI-compliant service that may provide
       optional authentication,
@@ -623,38 +652,47 @@ fall into one of the following categories:
       In case of a 401 or 403 response
       it should require the user to authenticate
       using one of the presented challenges,
-      cache the authentication data, and make subsequent requests
+      cache the permit, and make subsequent requests
       to that service in Proactive mode;
       if that authentication fails then the service cannot be used.
       In case of a 200 response it should check the response for challenges;
       if a supported challenge is present it may give the user the
-      option to authenticate, and if successful make subsequent requests
-      in Proactive mode.
+      option to authenticate, and if successful cache the permit and
+      make subsequent requests in Proactive mode.
       If no challenges are present (no authentication),
       or if the user elects not to authenticate,
       or if optional authentication fails,
       it should make subsequent requests in Anonymous or Reactive mode.
 \end{description}
 
+When using a VOSI-compliant service like TAP,
+an authentication-capable client should initially probe
+the capabilities in {\em preemptive\/} mode.
+For all other requests it should check whether the URL
+belongs to any of the domains for which it has a cached permit,
+and query in {\em reactive\/} or {\em proactive\/} mode accordingly.
+
+
 \subsection{Authentication Confirmation: {\tt X-VO-Authenticated}}
 
 The case of optional authentication presents the question
 of how a client knows whether it is authenticated or not.
-A client presenting authentication data to a service that implements
-optional authentication may get a successful response,
-appropriate to an unauthenticated user,
-even if the authentication attempt failed.
-It is desirable that the client/user can determine whether this is the case.
+Since a service with optional authentication can return
+a successful (200 OK) result to both an authenticated and unauthenticated
+client,
+the client cannot use the HTTP response code to determine whether
+an authentication attempt has been successful.
 
 It is therefore RECOMMENDED that services include the header
 \header{X-VO-Authenticated}, with a value giving the client's
-authenticated identity, in all responses to an authenticated client.
-Responses to unauthentciated clients MUST NOT contain this header.
+authenticated identity, in all responses to an authenticated client,
+and especially in response to any intial authentication attempt.
+Responses to unauthenticated clients MUST NOT contain this header.
 
 \todo{Or should this header only be required for initial login?}
 
 
-\subsection{Standards Compliance}
+\subsection{Standards Compatibility}
 
 The behaviour required when probing the capabilities endpoint
 as described in Section~\ref{sec:modalities}
@@ -662,7 +700,7 @@ is in conflict with existing standards.
 
 This proposal makes use of HEAD requests to the capabilities endpoint,
 but VOSI 1.1 only requires capabilities to support GET.
-In the case that HEAD is not supported (405 Method Not Allowed)
+If a client finds that HEAD is not supported (405 Method Not Allowed)
 a client may assume that optional authentication is not in place.
 
 This proposal allows a GET or HEAD request to the capabilities endpoint
@@ -673,6 +711,16 @@ the capabilities endpoint to be accessible anonymously.
 A service implementing the behaviour described here may therefore
 be forced to violate existing standards.  Future evolution of those
 standards may act to resolve this conflict.
+
+\subsection{Limitations}
+
+This document does not currently make explicit provision for
+expiry of permits.
+Use of an expired permit will probably look like an authentication
+failure (401), so clients may simply try to re-authenticate in
+such a case.
+Scheme-specific expiry information may also be provided with a permit.
+Future versions of this document may tackle this in more detail.
 
 
 \section{Examples}
@@ -689,14 +737,18 @@ The ``{\tt -D -}'' flag causes response headers to be shown.
 Some of the non-essential headers have been removed for the sake
 of brevity, and some line-breaks imposed for readability.
 
-\subsection{Reactive authentication with Basic}
+\subsection{Reactive authentication with HTTP Basic Authentication}
+
+% This example is based on the resource at
+% http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits.vot and
+% http://www.g-vo.org:8080/getproduct/feros/data/f04031.fits
 
 Request a resource anonymously:
 {\footnotesize
 \begin{verbatim}
-% curl -D - http://example.org/data/release/table99.vot
+% curl -D - https://example.org/data/release/table99.vot
 HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Basic realm="Shangri-la"
+WWW-Authenticate: Basic realm="Gormenghast"
 Content-Type: text/html;charset=utf-8
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -710,7 +762,7 @@ with a standard Basic challenge.
 We therefore resubmit the query with a username and password:
 {\footnotesize
 \begin{verbatim}
-% curl -u batman:xxxx -D - http://example.org/data/release/table99.vot
+% curl -u batman:xxxx -D - https://example.org/data/release/table99.vot
 HTTP/1.1 200 OK
 X-Vo-Authenticated: batman
 Content-Type: application/x-votable+xml
@@ -722,13 +774,13 @@ Content-Type: application/x-votable+xml
 }
 
 \noindent
-We can then use the same authentication data (username and password)
-preemptively for other resources within the same scope
+We can then use the same permit (encoded username and password)
+preemptively for other resources within the same domain
 (defined in this context by \rfc{7617} as locations in the same
-directory or its descendants)
+directory or its descendants):
 {\footnotesize
 \begin{verbatim}
-% curl -u batman:xxxx -D - http://example.org/data/release/image101.fits
+% curl -u batman:xxxx -D - https://example.org/data/release/image101.fits
 HTTP/1.1 200 OK
 X-Vo-Authenticated: batman
 Content-Type: application/fits
@@ -741,6 +793,9 @@ SIMPLE  =                    T / Standard FITS format ...
 
 \subsection{Optional authentication with cookies}
 \label{sec:cookie-example}
+
+% This example is copied more or less without change,
+% except for anonymisation, from exchanges with the ESAC GACS service.
 
 Probe the VOSI-capabilities endpoint of a TAP service to check
 for authentication modality:
@@ -764,23 +819,24 @@ by POSTing \verb|username| and \verb|password| parameters
 to the \verb|access_url|:
 {\footnotesize
 \begin{verbatim}
-% curl -D - -d username=batman -d password=xxxx
-       https://gea.esac.esa.int/tap-server/login -s -o /dev/null
+% curl -D - -d username=batman -d password=xxxx \
+       https://gea.esac.esa.int/tap-server/login
 HTTP/1.1 200 OK
 Set-Cookie: JSESSIONID=474DEF8CBB046D47294; Path=/tap-server; Secure; HttpOnly
 Content-Type: text/plain; charset=UTF-8
+
+OK
 \end{verbatim}
 }
 
 \noindent
 The response comes back with a cookie in the header.
-We use this for subsequent requests to the same service
-(in general: for subsequent requests in the domain defined by the Path
-parameter and other relevant parameters in the returned Set-Cookie header
-in accordance with \rfc{6265}):
+We use this for subsequent requests to the same domain
+(as defined by {\tt Path} and other relevant parameters in the
+returned \header{Set-Cookie} header in accordance with \rfc{6265}):
 {\footnotesize
 \begin{verbatim}
-% curl -D - --header 'Cookie: JSESSIONID=474DEF8CBB046D47294'
+% curl -D - --header 'Cookie: JSESSIONID=474DEF8CBB046D47294' \
        https://gea.esac.esa.int/tap-server/tap/async
 HTTP/1.1 200 OK
 X-VO-Authenticated: batman
@@ -797,10 +853,12 @@ Content-Type: text/xml;charset=UTF-8
 \subsection{Mandatory authentication with certificates}
 \label{sec:x509-example}
 
-% Note: at time of writing the exchange in this example doesn't quite
-% work in real life, since the standard_id and access_url parameters
-% are missing from the youcat ivoa_x509 challenge.
-% I've pretended here that they are in fact present.  The rest works.
+% This exchange is based on the CADC Youcat service at
+% https://ws-uv.canfar.net/youcat/capabilities,
+% whose certificate acquisition endpoint is at
+% https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred/generate.
+% But at time of writing it wasn't really working (no parameters in challenge)
+% and it uses optional, rather than mandatory, authentication.
 
 Probe the VOSI-capabilities endpoint of a TAP service to check
 for authentication modality:
