@@ -768,7 +768,7 @@ Please log in.
 
 \noindent
 This gives a 401 Unauthorized response
-with a standard Basic challenge.
+with a standard Basic challenge (\rfc{7617}).
 We therefore resubmit the query with a username and password:
 {\footnotesize
 \begin{verbatim}
@@ -801,6 +801,8 @@ SIMPLE  =                    T / Standard FITS format ...
 \end{verbatim}
 }
 
+There is nothing VO-specific about this example.
+
 
 \subsection{Optional authentication with cookies}
 \label{sec:cookie-example}
@@ -809,7 +811,7 @@ SIMPLE  =                    T / Standard FITS format ...
 % except for anonymisation, from exchanges with the ESAC GACS service.
 
 Probe the VOSI-capabilities endpoint of a TAP service to check
-for authentication modality:
+for authentication modality (Section~\ref{sec:modalities}):
 {\footnotesize
 \begin{verbatim}
 % curl --head https://gea.esac.esa.int/tap-server/tap/capabilities
@@ -824,8 +826,10 @@ WWW-Authenticate: ivoa_cookie standard_id="ivo://ivoa.net/sso#tls-with-password"
 The 200 OK response with a challenge means that optional authentication
 is available.
 We choose to authenticate.
-The \verb|ivoa_cookie| challenge is recognised with \verb|standard_id|
-of \verb|tls-with-password|, so transmit user credentials
+The \verb|ivoa_cookie| challenge is recognised (Section~\ref{sec:ivoa-cookie})
+with \verb|standard_id| of \verb|tls-with-password|
+(Section~\ref{sec:standard-id}),
+so transmit user credentials
 by POSTing \verb|username| and \verb|password| parameters
 to the \verb|access_url|:
 {\footnotesize
@@ -872,7 +876,7 @@ Content-Type: text/xml;charset=UTF-8
 % and it uses optional, rather than mandatory, authentication.
 
 Probe the VOSI-capabilities endpoint of a TAP service to check
-for authentication modality:
+for authentication modality (Section~\ref{sec:modalities}):
 {\footnotesize
 \begin{verbatim}
 % curl --head https://abc.example.net/tap/capabilities
@@ -886,10 +890,11 @@ www-authenticate: Bearer
 \noindent
 The 401 Unauthorized response means that authentication
 is required to access the service.
-The \verb|Bearer| challenge means we can authenticate with
+The \verb|Bearer| challenge (\rfc{6750}) means we can authenticate with
 a Bearer Token if we have or know how to get one, but we don't.
-We can however use the \verb|ivoa_x509| challenge;
-it has a \verb|standard_id| of \verb|BasicAA|,
+We can however use the \verb|ivoa_x509| challenge
+(Section~\ref{sec:ivoa-x509});
+it has a \verb|standard_id| of \verb|BasicAA| (Section~\ref{sec:standard-id})
 so transmit user credentials using
 HTTP Basic Authentication to the \verb|access_url|:
 
