@@ -76,9 +76,9 @@ But a desktop VO client such as Aladin, TOPCAT or Python
 typically interacts with VO services differently, in one of two
 ways:
 \begin{enumerate}
-\item Search the registry for a service, then make VO-compliant
+\item Searches the registry for a service, then makes VO-compliant
       requests to that service (e.g.\ TAP)
-\item Be presented with a URL, then retrieve the data from that URL
+\item Is presented with a URL, then retrieves the data from that URL
       (e.g.\ DataLink)
 \end{enumerate}
 In the first, TAP-like, case additional information is available to the
@@ -112,7 +112,7 @@ have no information about the VO service which produced that URL.
 Then the only opportunity to acquire information about how to authenticate
 is by examining the URL itself, or by HTTP communications with that URL.
 
-The HTTP Basic Authentication method (\rfc{7617})
+An authentication method like HTTP Basic (\rfc{7617})
 can be used in this scenario,
 since all negotiation involving user credentials and permits ---
 request and supply of username and password ---
@@ -121,7 +121,7 @@ over the HTTP connection from which the resource is requested.
 More modern/secure/flexible authentication methods however tend to
 rely on additional interaction with other, unspecified, endpoints
 prior to the request itself.  For instance OAuth2 requires presentation
-of a bearer token to retrieve protected resources from a given URL,
+of a Bearer Token to retrieve protected resources from a given URL,
 but there is no way given only that URL to determine where or how
 to acquire this token;
 in a typical OAuth2 usage scenario such information is known up front
@@ -136,11 +136,12 @@ required to authenticate,
 in particular how to exchange user credentials for an authentication permit,
 given only the URL for a suitably compliant protected resource.
 
-To address this, this document defines (Section~\ref{sec:voschemes})
+To address this, this document defines (Section~\ref{sec:authschemes})
 some VO-specific authentication schemes
 for use in \header{WWW-Authenticate} challenges.
 It also describes (Section~\ref{sec:cr-use}) how to discover the
-authentication options for VO services.
+authentication requirements for VO services, and
+some arrangements for working with optional authentication.
 
 The intent of this document is not to define new authentication
 mechanisms parallel to pre-existing standards, but to provide
@@ -188,7 +189,7 @@ associated with existing VO services.
 For services like TAP \citep{2019ivoa.spec.0927D}
 that comply with VOSI \citep{2017ivoa.spec.0524G} to
 offer service description documents at locations
-defined by DALI \citep{2017ivoa.spec.0517D}
+defined by DALI \citep{2017ivoa.spec.0517D},
 clients can discover these methods
 using an up-front query to the VOSI capabilities endpoint.
 For non-VOSI services such as DataLink \citep{2015ivoa.spec.0617D}
@@ -220,11 +221,10 @@ The following terms are used with specific meanings in this document:
       a particular {\em permit\/} type,
       presented within a \header{WWW-Authenticate} header
 \item[authentication scheme]
-      A particular type of {\em challenge\/} with its own rules and syntax,
-      or the short string labelling this type
+      A particular type of {\em challenge\/} with its own rules and syntax
 \end{description}
 The terms {\em challenge\/} and {\em authentication scheme} are
-defined by \rfc{9110} \citep{std:RFC9110}
+defined by \rfc{9110}
 and explained further in Section~\ref{sec:challenge-response}.
 
 
@@ -239,7 +239,7 @@ authentication challenges supplied in HTTP responses.
 The basics of authentication over HTTP can be found in
 section 11 of \rfc{9110} \citep{std:RFC9110};
 that document obsoletes \rfc{7235} \citep{std:RFC7235}
-which introduced this protocol.
+which presented an earlier version of this protocol.
 More detail can be found in those documents, but for convenience
 the basics are outlined here:
 % 401, 403, WWW-Authenticate, maybe Authorization.
@@ -259,7 +259,7 @@ the basics are outlined here:
         with scheme-specific content.
         In case of multiple challenges, the client is free to choose one.
   \item The form of a challenge is:\\
-        \verb|   <auth-scheme> [<scheme-specific-parameters>]|
+        \verb|   <auth-scheme-name> [<scheme-specific-parameters>]|
   \item The form of the \header{WWW-Authenticate} header is:\\
         \verb|   WWW-Authenticate: <challenge> [<challenge> ...]|
 \end{itemize}
@@ -270,7 +270,8 @@ the basics are outlined here:
 }
 
 The details of a number of these authentication schemes
-(\verb|<auth-scheme>| strings and their associated parameters and semantics)
+(\verb|<auth-scheme-name>| strings and their
+associated parameters and semantics)
 are defined in IETF documents, for instance
 ``{\tt basic}'' (\rfc{7617} \citet{std:RFC7617})
 ``{\tt digest}'' (\rfc{7616} \citet{std:RFC7616})
@@ -342,7 +343,7 @@ Section~\ref{sec:common-params}:
 \subsection{Scope}\label{sec:scope}
 
 A major consideration for these schemes is authentication scope,
-that is some rule about the domain (set of URLs) within which an
+that is some rule about the domain (set of endpoints) within which an
 acquired permit is valid.
 The permit is confidential information and so must not be leaked to services
 outside the domain.
@@ -354,7 +355,8 @@ for multiple different domains at once.
 So the permit must be delivered with sufficient
 implicit or explicit scoping
 information for the client to tell for each subsequent request
-whether that permit should be presented.
+whether that permit should be presented,
+i.e.\ whether it falls within that permit's domain.
 The nature and form of this scoping information is scheme-specific.
 
 
@@ -407,9 +409,11 @@ If authentication fails, a 401 or 403 response should be returned.
 Once in possession of the returned cookie or cookies,
 the client can present them in a \header{Cookie} header as defined
 by \rfc{6265} for subsequent requests to protected resources.
+If multiple cookies were received, they should all be presented.
 
-Cookies come with an associated scope, delivered within the
-the {\tt Set-Cookie} header, so compliant cookie-handling
+Cookies come with an associated scope, defined by the content
+of the \header{Set-Cookie} header in conjunction with \rfc{6265},
+so compliant cookie-handling
 libraries are able to determine the domain for a given cookie.
 
 There is an example in Section~\ref{sec:cookie-example}.
@@ -461,6 +465,7 @@ whose body is an X.509 certificate chain including its private key,
 in PEM format.  The \header{Content-Type} header of this response
 should be ``{\tt application/x-pem-file}''. \todo{should it?}
 Current implementations support only RSA encoding.
+\todo{I copied this from a code comment but I don't know what it means}
 If authentication fails, a 401 or 403 response should be returned.
 Once in possession of the returned certificate,
 the client can use it to sign subsequent requests to protected resources.
@@ -494,7 +499,7 @@ There is an example in Section~\ref{sec:x509-example}.
 \label{sec:common-params}
 
 Authentication schemes described in Section~\ref{sec:voschemes}
-rely on a stage where the user exchanges 
+rely on a stage where the user ``logs in'' by exchanging
 % secret credentials, but so far always...
 credentials (a username and password) for a permit.
 This section defines scheme parameters that
@@ -524,7 +529,7 @@ Currently defined values are:
         The Basic Authentication scheme defined by \rfc{7617} is used to
         authenticate.
         It is STRONGLY RECOMMENDED to use this over HTTPS not HTTP,
-        since the username and password are effectively passed in clear text.
+        since the username and password are transmitted without encryption.
   \item[{\tt ivo://ivoa.net/sso\#tls-with-password}]
         The username and password are presented using a POST request
         over an HTTPS connection.
@@ -538,7 +543,7 @@ Currently defined values are:
   the (obsolete?) SSO 2.0 standard.
   It would make more sense if they were owned by this document,
   but at time of writing these values are already in use in
-  deployed services, so it could be painful to change them.
+  (a few) deployed services, so it could be painful to change them.
 }
 
 
@@ -692,25 +697,31 @@ Responses to unauthenticated clients MUST NOT contain this header.
 \todo{Or should this header only be required for initial login?}
 
 
-\subsection{Standards Compatibility}
+\subsection{Compatibility with other VO Standards}
 
-The behaviour required when probing the capabilities endpoint
-as described in Section~\ref{sec:modalities}
-is in conflict with existing standards.
-
-This proposal makes use of HEAD requests to the capabilities endpoint,
-but VOSI 1.1 only requires capabilities to support GET.
+Section~\ref{sec:modalities} of this document
+makes use of HEAD requests to the capabilities endpoint,
+but VOSI 1.1 \citep{2017ivoa.spec.0524G}
+only requires capabilities to support GET.
 If a client finds that HEAD is not supported (405 Method Not Allowed)
-a client may assume that optional authentication is not in place.
+it may assume that optional authentication is not in place.
 
-This proposal allows a GET or HEAD request to the capabilities endpoint
-to result in a 401 Unauthorized or 403 Forbidden failure,
-but VOSI 1.1 Section 2, and TAP 1.1 Section 2.2 both require
+Section~\ref{sec:modalities} also allows a GET or HEAD request
+to the capabilities endpoint to result in a
+401 Unauthorized or 403 Forbidden failure,
+but VOSI 1.1 Section 2 and TAP 1.1 Section 2.2 both require
 the capabilities endpoint to be accessible anonymously.
 
+The SSO 2.0 recommendation \citep{2017ivoa.spec.0524T}
+requires that protected services
+record their authentication requirements via a
+\xmlel{SecurityMethod} element in their VOResource record.
+This document does not align with SSO 2.0,
+and \xmlel{SecurityMethod} elements are no longer required or recommended.
+
 A service implementing the behaviour described here may therefore
-be forced to violate existing standards.  Future evolution of those
-standards may act to resolve this conflict.
+be forced into conflict with existing VO documents.
+Future evolution of those documents may act to resolve this conflict.
 
 \subsection{Limitations}
 
@@ -719,7 +730,7 @@ expiry of permits.
 Use of an expired permit will probably look like an authentication
 failure (401), so clients may simply try to re-authenticate in
 such a case.
-Scheme-specific expiry information may also be provided with a permit.
+In some cases scheme-specific expiry information may be supplied with a permit.
 Future versions of this document may tackle this in more detail.
 
 
@@ -749,10 +760,9 @@ Request a resource anonymously:
 % curl -D - https://example.org/data/release/table99.vot
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Basic realm="Gormenghast"
-Content-Type: text/html;charset=utf-8
+Content-Type: text/plain
 
-<html xmlns="http://www.w3.org/1999/xhtml">
-...
+Please log in.
 \end{verbatim}
 }
 
@@ -762,14 +772,15 @@ with a standard Basic challenge.
 We therefore resubmit the query with a username and password:
 {\footnotesize
 \begin{verbatim}
-% curl -u batman:xxxx -D - https://example.org/data/release/table99.vot
+% curl --user gertrude:xxxx -D - https://example.org/data/release/table99.vot
 HTTP/1.1 200 OK
-X-Vo-Authenticated: batman
+X-Vo-Authenticated: gertrude
 Content-Type: application/x-votable+xml
 
 <?xml version='1.0' encoding='utf-8'?>
 <VOTABLE version="1.5" ...
 ...
+</VOTABLE>
 \end{verbatim}
 }
 
@@ -780,9 +791,9 @@ preemptively for other resources within the same domain
 directory or its descendants):
 {\footnotesize
 \begin{verbatim}
-% curl -u batman:xxxx -D - https://example.org/data/release/image101.fits
+% curl --user gertrude:xxxx -D - https://example.org/data/release/image101.fits
 HTTP/1.1 200 OK
-X-Vo-Authenticated: batman
+X-Vo-Authenticated: gertrude
 Content-Type: application/fits
 
 SIMPLE  =                    T / Standard FITS format ...
@@ -819,7 +830,7 @@ by POSTing \verb|username| and \verb|password| parameters
 to the \verb|access_url|:
 {\footnotesize
 \begin{verbatim}
-% curl -D - -d username=batman -d password=xxxx \
+% curl -D - --data username=gertrude --data password=xxxx \
        https://gea.esac.esa.int/tap-server/login
 HTTP/1.1 200 OK
 Set-Cookie: JSESSIONID=474DEF8CBB046D47294; Path=/tap-server; Secure; HttpOnly
@@ -839,7 +850,7 @@ returned \header{Set-Cookie} header in accordance with \rfc{6265}):
 % curl -D - --header 'Cookie: JSESSIONID=474DEF8CBB046D47294' \
        https://gea.esac.esa.int/tap-server/tap/async
 HTTP/1.1 200 OK
-X-VO-Authenticated: batman
+X-VO-Authenticated: gertrude
 Content-Type: text/xml;charset=UTF-8
 
 <?xml version="1.0" encoding="UTF-8"?>
@@ -875,15 +886,18 @@ www-authenticate: Bearer
 \noindent
 The 401 Unauthorized response means that authentication
 is required to access the service.
-The \verb|ivoa_x509| challenge is recognised with \verb|standard_id|
-of \verb|BasicAA|, so transmit user credentials using
+The \verb|Bearer| challenge means we can authenticate with
+a Bearer Token if we have or know how to get one, but we don't.
+We can however use the \verb|ivoa_x509| challenge;
+it has a \verb|standard_id| of \verb|BasicAA|,
+so transmit user credentials using
 HTTP Basic Authentication to the \verb|access_url|:
 
 {\footnotesize
 \begin{verbatim}
-% curl -u batman:xxxx -D - https://xyz.example.net/cert/generate
+% curl --user gertrude:xxxx -D - https://xyz.example.net/cert/generate
 HTTP/1.1 200 OK
-x-vo-authenticated: batman
+x-vo-authenticated: gertrude
 content-disposition: inline; filename="cert.pem"
 content-type: application/x-pem-file
 strict-transport-security: max-age=63072000
@@ -899,13 +913,13 @@ EwJDQTEZMBcGA1UECAwQQnJpdGlzaCBDb2x1bWJpYTENMAsGA1UECgwEQ0FEQzEd
 
 \noindent
 The response is a PEM-encoded client certificate, which we copy
-to a local file, \verb|batcert.pem|.
+to a local file, \verb|gertcert.pem|.
 This can then be used to sign subsequent requests to the same service:
 {\footnotesize
 \begin{verbatim}
-% curl --cert batcert.pem -D - https://abc.example.net/tap/async
+% curl --cert gertcert.pem -D - https://abc.example.net/tap/async
 HTTP/1.1 200 OK
-x-vo-authenticated: batman
+x-vo-authenticated: gertrude
 content-type: text/xml
 
 <?xml version="1.0" encoding="UTF-8"?>
