@@ -38,7 +38,10 @@ resources.
 
 \todo{The title is up for debate.
       Sara/Dave suggest maybe Interoperable Authentication Protocol instead?
-      Or something else}
+      Or something else.
+      BM: "Protocol" may be better than "Management" so it's IAP, instead of
+      IAM, which is a term in this same field meaning
+      "Identity and Access Management".}
 
 
 \section*{Acknowledgments}
@@ -75,7 +78,20 @@ a service can often integrate information about the authentication
 methods required with the web page or web application through which
 it is accessed.
 \todo{is this true?  I don't understand browser-based authentication
-      or what makes it work all that well}
+      or what makes it work all that well.
+      BM: Yes, I would say that's true.  Standard protocols like
+      Shibboleth and OpenID Connect have been widely adopted for
+      supporting authentication on web sites.
+      There are remaining authentication issues in the browser world
+      too, but standard orgs have their sights on these in their
+      roadmaps.  One problem in particilar, federated identity
+      management, is particularily important for the astronomy
+      community, and as of yet has no standard solution.
+      Federated OpenID Connect aims to address this.
+      https://openid.net/specs/openid-connect-federation-1_0-28.html
+      Here at CADC we are having to build a custom solution for
+      this to support the SRCNet and LSST communities.
+      }
 
 But a desktop VO client such as Aladin, TOPCAT or Python
 typically interacts with VO services differently, in one of two
@@ -158,8 +174,8 @@ but by implementing the proposals here they can become usable
 in a broader range of scenarios.
 VO services however are not required to use any of the  
 mechanisms proposed in this document; if they can establish the
-client interoperability they require using other mechanisms
-they are free to do so.
+client interoperability they require using other mechanisms, or
+a combination of VO and other mechansisms, they are free to do so.
 
 Given that, as explained above,
 the VOResource record can only be discovered in some (TAP-like)
@@ -206,10 +222,14 @@ such discovery is done reactively.
 The following terms are used with specific meanings in this document:
 
 \todo{Are these OK? Do they align with established usage?
-      Are there better choices?}
+      Are there better choices?
+      I haven't heard use of 'permit' before, but it seems like a
+      good choice to me.}
 \begin{description}
 \item[protected]
-      A service or resource that can only be accessed by authenticated users
+      A service or resource that can only be accessed by authenticated users,
+      or will allow greater levels of access to authenticated users over
+      anonymous users
 \item[permit]
       Information that a client can supply with an HTTP request to
       prove its authenticated identity;
@@ -434,6 +454,18 @@ and describes how to acquire such certificates.
   I am pretty ignorant about X.509.
   This section should be checked by
   somebody who knows what they're talking about.
+  BM: The aquisition of X.509 certificates is generally decoupled
+  from their use. Certificate Authorities (CAs) are separate entities
+  that work with Operating System providers and end users to
+  establish the trust relationship and identity verification needed
+  to make secure and verifyable HTTP calls.
+  However, in research fields particularily, organizations may issue
+  their own self-signed certificates.
+  Also, this may be a place to link the Credential Delegation
+  Protocol (CDP) service to this standard.  Probably requires more
+  discussion.
+  There's also discussion here of the evolution of CDP with OAuth
+  refresh tokens.
 }
 
 \begin{description}
@@ -460,6 +492,12 @@ to authenticate the identity of the client.
 \todo{
   Do we need to distinguish proxy from non-proxy certificates here?
   I don't actually understand what proxy certificates are.
+  BM: I don't think so.  In practice, proxy certificates are
+  shorter-lived certificates.  CDP may mention them as an
+  implementation option, but I think that's all.
+  Additional note: support for proxy certificates in the linux
+  world is vanishing.  We've had to abondon them here and
+  replace them with regular certificates.
 }
 
 To use this scheme, the client must present a username and password
